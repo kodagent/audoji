@@ -20,7 +20,7 @@ WORKDIR /code
 COPY . /code/
 
 # Install Python dependencies including Whisper
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install git+https://github.com/openai/whisper.git
 
 # # Collect static files

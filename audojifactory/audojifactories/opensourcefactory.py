@@ -5,9 +5,7 @@ import tempfile
 
 import librosa
 import openai
-import whisper
 from asgiref.sync import sync_to_async
-from cachetools import TTLCache
 from django.conf import settings
 from django.core.files.base import ContentFile
 from openai import AsyncOpenAI
@@ -20,63 +18,33 @@ from audojifactory.models import AudioSegment as AudioSegmentModel
 openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 logger = configure_logger(__name__)
 
-# Cache for storing API responses
-cache = TTLCache(maxsize=100, ttl=300)  # Adjust maxsize and ttl as needed
-
 
 class AudioProcessor:
     def __init__(self, audio_file_instance):
+        import whisper
+
         self.audio_file_instance = audio_file_instance
-        self.audio_path = audio_file_instance.audio_file.path
+        # self.audio_path = audio_file_instance.audio_file.path
+        self.audio_path = audio_file_instance.audio_file.url
         self.model = whisper.load_model(
             "base"
         )  # "base", "medium", "large-v1", "large-v2", "large-v3", "large"
-        # self.output_dir = self.create_output_directory()
-
-    def create_output_directory(self):
-        # Assuming 'media' is the name of your Django media directory
-        media_root = settings.MEDIA_ROOT
-
-        # Generate the output directory name based on the audio file name
-        base_name = os.path.splitext(os.path.basename(self.audio_path))[0]
-
-        # Construct the output directory path within the media directory
-        output_dir = os.path.join(media_root, "audio_segments", base_name)
-
-        # Create the output directory if it doesn't exist
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir, exist_ok=True)
-
-        return output_dir
-
-    # def analyze_tempo(self, segment_audio):
-    #     # Save the segment to a temporary file
-    #     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
-    #         segment_audio.export(temp_file.name, format="wav")
-
-    #         # Load the temporary file with librosa
-    #         y, sr = librosa.load(temp_file.name, sr=None)
-    #         tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-
-    #     os.remove(temp_file.name)
-
-    #     return {"tempo": tempo}
 
     async def transcribe_audio(self):
         return self.model.transcribe(self.audio_path)
 
-    async def analyze_mood_async(self, transcription):
-        logger.info("Analysing moods")
-        cached_mood = cache.get(transcription)
-        if cached_mood:
-            return cached_mood
+    async def analyze_category_async(self, transcription):
+        logger.info("Analysing categories")
 
-        prompt = (
-            "Here's an example of how I want you to categorize the mood: \n"
-            "Text: 'I feel great today!' Response: {'mood': 'Happy'}\n\n"
-            "Now, using the same format, categorize the mood of the following text as 'Happy', 'Sad', or 'Inbetween', and respond in JSON format: \n"
-            f"Text: '{transcription}'\nResponse: "
-        )
+        categories = "Affection, Gratitude, Apologies, Excitement, Disinterest, Well-being, Greetings"
+
+        prompt = f"""Here's an example of how I want you to categorize the text: \n
+            Text: 'I feel amazing today!' Response: {{'category': 'Excitement'}}\n\n
+            Now, using the same format, categorize the following text as {categories}, and respond in JSON format: \n
+            Text: '{transcription}'\nResponse: 
+
+            # SAMPLE FORMAT:
+            {{'category': 'Excitement'}}"""
 
         try:
             response = await openai_client.chat.completions.create(
@@ -87,8 +55,8 @@ class AudioProcessor:
             )
             processed_response = json.loads(response.choices[0].message.content)
             logger.info(f"This is the response: {processed_response}")
-            mood = processed_response.get("mood", None)
-            return mood
+            category = processed_response.get("category", None)
+            return category
         except openai.APIError as e:
             logger.error(f"OpenAI API error: {e}")
             return None
@@ -99,7 +67,7 @@ class AudioProcessor:
 
         for i, segment in enumerate(result["segments"]):
             transcription = segment.get("text", "").strip()
-            mood = await self.analyze_mood_async(transcription)
+            category = await self.analyze_category_async(transcription)
 
             start = segment["start"]
             end = segment["end"]
@@ -110,9 +78,10 @@ class AudioProcessor:
                 "start_time": start,
                 "end_time": end,
                 "transcription": transcription,
-                "mood": mood,
+                "category": category,
             }
             audio_segment_instance = AudioSegmentModel(**segment_data)
+            print('This is the what I am checking: ', audio_segment_instance)
             await sync_to_async(audio_segment_instance.save)()
 
             segment_data["audio_file_id"] = self.audio_file_instance.id
@@ -132,14 +101,14 @@ class AudioProcessor:
 
 
 class AudioRetrieval:
-    def __init__(self, matching_segment_instance):
+    def __init__(self, matching_segment_instance, start_time, end_time):
         self.audio_file_instance = matching_segment_instance
         self.segment_id = matching_segment_instance.id
         self.associated_audio_file = (
             matching_segment_instance.audio_file.audio_file.path
         )
-        self.start_time = matching_segment_instance.start_time
-        self.end_time = matching_segment_instance.end_time
+        self.start_time = start_time
+        self.end_time = end_time
 
     def create_audoji(self):
         audio = AudioSegmentCreator.from_file(self.associated_audio_file)

@@ -1,11 +1,12 @@
 from django.db import models
 from django.utils import timezone
 
-from accounts.models import OrganizationCustomer
+# from accounts.models import OrganizationCustomer
 
 
 class AudioFile(models.Model):
-    owner = models.ForeignKey(OrganizationCustomer, on_delete=models.CASCADE)
+    # owner = models.ForeignKey(OrganizationCustomer, on_delete=models.CASCADE)
+    owner = models.CharField(max_length=255)
     artiste = models.CharField(max_length=255)
     audio_file = models.FileField(upload_to="audio_files/")
     title = models.CharField(max_length=255)
@@ -27,15 +28,23 @@ class AudioSegment(models.Model):
     start_time = models.FloatField()
     end_time = models.FloatField()
     segment_file = models.FileField(
-        upload_to=get_segment_upload_path, blank=True, null=True
+        upload_to="audio_segments/", blank=True, null=True
     )
     transcription = models.TextField(blank=True, null=True)
-    mood = models.CharField(max_length=100, blank=True, null=True)
-
-    @property
-    def calculate_duration(self):
-        return self.end_time - self.start_time
+    category = models.CharField(max_length=100, blank=True, null=True)  # change to category
+    # Added duration field to store the duration of the segment
+    duration = models.FloatField(default=0.0, blank=True, null=True)
 
     def save(self, *args, **kwargs):
-        self.duration = self.calculate_duration
+        self.duration = self.end_time - self.start_time
         super(AudioSegment, self).save(*args, **kwargs)
+
+
+
+class UserSelectedAudoji(models.Model):
+    user_id = models.CharField(max_length=255)  # Adjust max_length as needed
+    audio_segment = models.ForeignKey(AudioSegment, on_delete=models.CASCADE)
+    selected_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user_id', 'audio_segment')

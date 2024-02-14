@@ -4,7 +4,7 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
-    command: daphne alignworkengine.asgi:application -b 0.0.0.0 -p 8000
+    command: daphne audojiengine.asgi:application -b 0.0.0.0 -p 8000
     volumes:
       - .:/code
     ports:
@@ -17,7 +17,7 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
-    command: celery -A alignworkengine worker --loglevel=info
+    command: celery -A audojiengine worker --loglevel=info
     volumes:
       - .:/code
     depends_on:
