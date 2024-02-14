@@ -28,7 +28,7 @@ class AudioSegment(models.Model):
     start_time = models.FloatField()
     end_time = models.FloatField()
     segment_file = models.FileField(
-        upload_to=get_segment_upload_path, blank=True, null=True
+        upload_to="audio_segments/", blank=True, null=True
     )
     transcription = models.TextField(blank=True, null=True)
     mood = models.CharField(max_length=100, blank=True, null=True)  # change to category
@@ -38,3 +38,13 @@ class AudioSegment(models.Model):
     def save(self, *args, **kwargs):
         self.duration = self.end_time - self.start_time
         super(AudioSegment, self).save(*args, **kwargs)
+
+
+
+class UserSelectedAudoji(models.Model):
+    user_id = models.CharField(max_length=255)  # Adjust max_length as needed
+    audio_segment = models.ForeignKey(AudioSegment, on_delete=models.CASCADE)
+    selected_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user_id', 'audio_segment')
