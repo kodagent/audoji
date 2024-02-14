@@ -31,7 +31,7 @@ class AudioSegment(models.Model):
         upload_to="audio_segments/", blank=True, null=True
     )
     transcription = models.TextField(blank=True, null=True)
-    mood = models.CharField(max_length=100, blank=True, null=True)  # change to category
+    category = models.CharField(max_length=100, blank=True, null=True)  # change to category
     # Added duration field to store the duration of the segment
     duration = models.FloatField(default=0.0, blank=True, null=True)
 
