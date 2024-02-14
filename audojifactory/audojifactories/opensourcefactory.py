@@ -5,9 +5,7 @@ import tempfile
 
 import librosa
 import openai
-import whisper
 from asgiref.sync import sync_to_async
-from cachetools import TTLCache
 from django.conf import settings
 from django.core.files.base import ContentFile
 from openai import AsyncOpenAI
@@ -20,12 +18,11 @@ from audojifactory.models import AudioSegment as AudioSegmentModel
 openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 logger = configure_logger(__name__)
 
-# Cache for storing API responses
-cache = TTLCache(maxsize=100, ttl=300)  # Adjust maxsize and ttl as needed
-
 
 class AudioProcessor:
     def __init__(self, audio_file_instance):
+        import whisper
+
         self.audio_file_instance = audio_file_instance
         self.audio_path = audio_file_instance.audio_file.path
         self.model = whisper.load_model(
@@ -67,16 +64,16 @@ class AudioProcessor:
 
     async def analyze_mood_async(self, transcription):
         logger.info("Analysing moods")
-        cached_mood = cache.get(transcription)
-        if cached_mood:
-            return cached_mood
 
-        prompt = (
-            "Here's an example of how I want you to categorize the mood: \n"
-            "Text: 'I feel great today!' Response: {'mood': 'Happy'}\n\n"
-            "Now, using the same format, categorize the mood of the following text as 'Happy', 'Sad', or 'Inbetween', and respond in JSON format: \n"
-            f"Text: '{transcription}'\nResponse: "
-        )
+        categories = "Affection, Gratitude, Apologies, Excitement, Disinterest, Well-being, Greetings"
+
+        prompt = f"""Here's an example of how I want you to categorize the mood: \n
+            Text: 'I feel amazing today!' Response: {{'category': 'Excitement'}}\n\n
+            fNow, using the same format, categorize the following text as {categories}, and respond in JSON format: \n
+            fText: '{transcription}'\nResponse: 
+
+            # SAMPLE FORMAT:
+            {{'category': 'Excitement'}}"""
 
         try:
             response = await openai_client.chat.completions.create(
