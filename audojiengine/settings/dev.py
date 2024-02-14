@@ -1,59 +1,45 @@
-import django_on_heroku
-
 from .base import *
 
-DEBUG = True  # False
+DEBUG = True
 ALLOWED_HOSTS = ["*"]
 
 
-# ================================ DATABASES =======================================
-# DATABASES = {"default": dj_database_url.parse(config("DATABASE_URL"))}
-# DATABASES["default"]["OPTIONS"] = {"sslmode": "require"}
+# ================================ SUPERUSER =======================================
+USERNAME=config("USERNAME")
+EMAIL=config("EMAIL")
+PASSWORD=config("PASSWORD")
+# ================================ SUPERUSER =======================================
 
+# ================================ DATABASES =======================================
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    "default": dj_database_url.config(default="sqlite:///db.sqlite3", conn_max_age=600)
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 # ================================ DATABASES =======================================
 
 
 # ================================ STORAGES =======================================
-# ==> AMAZON S3 SETTINGS
-AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY")
-AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME")
-AWS_S3_FILE_OVERWRITE = False
-AWS_DEFAULT_ACL = None
-AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
-AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age-86400"}
-AWS_LOCATION = "static"
-AWS_QUERYSTRING_AUTH = False
-AWS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
-}
+# ==> STATIC FILE UPLOADS
+STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),
+]
 
 # ==> MEDIA FILE UPLOADS
-PUBLIC_MEDIA_LOCATION = "media"
-MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{PUBLIC_MEDIA_LOCATION}/"
-# DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-DEFAULT_FILE_STORAGE = "audojiengine.storage_backends.MediaStorage"
-
-# ==> STATIC FILE UPLOADS
-STATICFILES_STORAGE = "storages.backends.s3boto3.S3StaticStorage"
-STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 # ================================ STORAGES =======================================
-
-
-# ================================ PAYSTACK =======================================
-# PAYSTACK_PUBLIC_KEY=config("PAYSTACK_LIVE_PUBLIC_KEY")
-# PAYSTACK_SECRET_KEY=config("PAYSTACK_LIVE_SECRET_KEY")
-# ================================ PAYSTACK =======================================
 
 
 # ================================ EMAIL =======================================
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # EMAIL_HOST = 'smtp.office365.com'  # 'smtp.outlook.office365.com'
 # EMAIL_PORT = 587  # 465  # TLS port
@@ -66,31 +52,24 @@ STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
 
 
 # ================================ REDIS/CHANNELS =======================================
-# CACHES = {
-#     "default": {
-#         "BACKEND": "django_redis.cache.RedisCache",
-#         "LOCATION": config("REDIS_URL"),
-#         "OPTIONS": {
-#             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-#         }
-#     }
-# }
+# ==> REDIS
+REDIS_IP = "redis"
+REDIS_PORT = 6379
 
 # ==> CHANNELS
-default_channel_layer = {
-    "BACKEND": "channels_redis.core.RedisChannelLayer",
-    "CONFIG": {
-        "hosts": [config("REDIS_URL")],  # , 'redis://127.0.0.1:6379')],
-    },
-}
-CHANNEL_LAYERS = {"default": default_channel_layer}
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+#     }
+# }
+CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 # ================================ REDIS =======================================
 
 
 # ================================ CELERY =======================================
 # Use the actual IP address and port of your Redis server
-CELERY_BROKER_URL = config("REDIS_URL")
-CELERY_RESULT_BACKEND = config("REDIS_URL")
+CELERY_BROKER_URL = f"redis://{REDIS_IP}:{REDIS_PORT}/0"
+CELERY_RESULT_BACKEND = f"redis://{REDIS_IP}:{REDIS_PORT}/0"
 CELERY_TIMEZONE = "UTC"
 
 # List of modules to import when the Celery worker starts.
@@ -103,46 +82,7 @@ CELERY_RESULT_SERIALIZER = "json"
 # ================================ CELERY =======================================
 
 
-# ================================ HEROKU =======================================
-# # ==> HEROKU LOGGING
-# DEBUG_PROPAGATE_EXCEPTIONS = True
-# LOGGING = {
-#     "version": 1,
-#     "disable_existing_loggers": False,
-#     "formatters": {
-#         "verbose": {
-#             "format": "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
-#             "datefmt": "%d/%b/%Y %H:%M:%S",
-#         },
-#         "simple": {
-#             "format": "[%(asctime)s] %(levelname)s %(message)s",
-#         },
-#     },
-#     "handlers": {
-#         "console": {
-#             "level": "DEBUG",
-#             "class": "logging.StreamHandler"
-#         }
-#     },
-#     "loggers": {
-#         "dfxapp": {
-#             "handlers": ["console"],
-#             "level": "INFO",
-#         },
-#     },
-# }
-
-# # ==> HEROKU DATABASE
-# django_on_heroku.settings(locals(), staticfiles=False)
-# del DATABASES["default"]["OPTIONS"]["sslmode"]
-# ================================ HEROKU =======================================
-
-
-# ================================ SSL CONFIG =======================================
-# # Force SSL redirect if site is live
-# if os.getcwd() == '/app':ls
-
-#     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-#     SECURE_SSL_REDIRECT = True
-#     # DEBUG = False
-# ================================ SSL CONFIG =======================================
+# ================================ PAYSTACK =======================================
+# PAYSTACK_PUBLIC_KEY=config("PAYSTACK_TEST_PUBLIC_KEY")
+# PAYSTACK_SECRET_KEY=config("PAYSTACK_TEST_SECRET_KEY")
+# ================================ PAYSTACK =======================================
