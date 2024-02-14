@@ -24,7 +24,8 @@ class AudioProcessor:
         import whisper
 
         self.audio_file_instance = audio_file_instance
-        self.audio_path = audio_file_instance.audio_file.path
+        # self.audio_path = audio_file_instance.audio_file.path
+        self.audio_path = audio_file_instance.audio_file.url
         self.model = whisper.load_model(
             "base"
         )  # "base", "medium", "large-v1", "large-v2", "large-v3", "large"
