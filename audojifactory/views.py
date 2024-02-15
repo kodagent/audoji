@@ -2,7 +2,9 @@ import asyncio
 import time
 from threading import Thread
 
-from rest_framework import status, generics
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework import generics, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,8 +17,6 @@ from audojifactory.audojifactories.opensourcefactory import (
 from audojifactory.models import AudioFile, AudioSegment, UserSelectedAudoji
 from audojifactory.serializers import AudioFileSerializer, AudioSegmentSerializer
 from audojifactory.tasks import task_run_async_db_operation, task_run_async_processor
-from django.shortcuts import get_object_or_404
-from django.utils import timezone
 
 logger = configure_logger(__name__)
 
@@ -43,14 +43,16 @@ class AudioFileList(APIView):
         queryset = AudioFile.objects.all()
 
         # Filter by user_id if it's in the query params
-        user_id = request.query_params.get('user_id')
+        user_id = request.query_params.get("user_id")
         if user_id:
             queryset = queryset.filter(owner=user_id)
 
         # Filter by title if it's in the query params
-        title = request.query_params.get('title')
+        title = request.query_params.get("title")
         if title:
-            queryset = queryset.filter(title__icontains=title)  # Case-insensitive containment search
+            queryset = queryset.filter(
+                title__icontains=title
+            )  # Case-insensitive containment search
 
         serializer = AudioFileSerializer(queryset, many=True)
         return Response(serializer.data)
@@ -141,24 +143,26 @@ class AudioSegmentList(APIView):
 
     def get(self, request):
         # Filter AudioFiles by user_id and optionally by title
-        user_id = request.query_params.get('user_id')
-        title = request.query_params.get('title')
+        user_id = request.query_params.get("user_id")
+        title = request.query_params.get("title")
         audio_files_query = AudioFile.objects.all()
-        
+
         if user_id:
             audio_files_query = audio_files_query.filter(owner=user_id)
         if title:
             audio_files_query = audio_files_query.filter(title__icontains=title)
-        
+
         # Now, filter AudioSegments based on AudioFiles filtered above
         segments_query = AudioSegment.objects.filter(audio_file__in=audio_files_query)
 
         # Optionally, add more filters for segments based on additional query params
         # For example, filtering by transcription or mood
-        transcription = request.query_params.get('transcription')
-        mood = request.query_params.get('mood')
+        transcription = request.query_params.get("transcription")
+        mood = request.query_params.get("mood")
         if transcription:
-            segments_query = segments_query.filter(transcription__icontains=transcription)
+            segments_query = segments_query.filter(
+                transcription__icontains=transcription
+            )
         if mood:
             segments_query = segments_query.filter(mood__icontains=mood)
 
@@ -168,39 +172,46 @@ class AudioSegmentList(APIView):
 
 class SelectAudoji(APIView):
     def get(self, request):
-        user_id = request.query_params.get('user_id')
-        audio_segment_id = request.query_params.get('audio_segment_id')
+        user_id = request.query_params.get("user_id")
+        audio_segment_id = request.query_params.get("audio_segment_id")
 
         if not user_id or not audio_segment_id:
-            return Response({"error": "Missing user_id or audio_segment_id."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Missing user_id or audio_segment_id."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Check if the audio segment exists
         audio_segment = get_object_or_404(AudioSegment, id=audio_segment_id)
 
         # Create or update the selection
         UserSelectedAudoji.objects.update_or_create(
-            user_id=user_id, 
+            user_id=user_id,
             audio_segment=audio_segment,
-            defaults={'selected_at': timezone.now()}
+            defaults={"selected_at": timezone.now()},
         )
 
-        return Response({"message": "Audoji selected successfully."}, status=status.HTTP_200_OK)
+        return Response(
+            {"message": "Audoji selected successfully."}, status=status.HTTP_200_OK
+        )
 
 
 class SelectedAudojiList(generics.ListAPIView):
     serializer_class = AudioSegmentSerializer
 
     def get_queryset(self):
-        user_id = self.request.query_params.get('user_id')
+        user_id = self.request.query_params.get("user_id")
 
         if not user_id:
             return AudioSegment.objects.none()  # Return an empty queryset if no user_id
 
-        selected_segments = UserSelectedAudoji.objects.filter(user_id=user_id).values_list('audio_segment', flat=True)
+        selected_segments = UserSelectedAudoji.objects.filter(
+            user_id=user_id
+        ).values_list("audio_segment", flat=True)
         queryset = AudioSegment.objects.filter(id__in=selected_segments)
 
         # Implement additional filtering if needed
-        title = self.request.query_params.get('title')
+        title = self.request.query_params.get("title")
         if title:
             queryset = queryset.filter(audio_file__title__icontains=title)
 
