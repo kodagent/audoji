@@ -1,29 +1,28 @@
 version: '3'
 services:
   web:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    command: daphne audojiengine.asgi:application -b 0.0.0.0 -p 8000
+    image: audojiapp/aiengine-staging:latest
+    command: daphne audojiengine.asgi:application -b 0.0.0.0 -p ${APP_PORT}
     volumes:
       - .:/code
     ports:
-      - "8000:8000"
+      - “127.0.0.1:${APP_PORT}:${APP_PORT}”
     depends_on:
       - redis
-    container_name: alignwork_chat_app
-  
+    container_name: audoji_chat_app
+    restart: always
+
   celery:
-    build: 
-      context: .
-      dockerfile: Dockerfile
+    image: audojiapp/aiengine-staging:latest
     command: celery -A audojiengine worker --loglevel=info
     volumes:
       - .:/code
     depends_on:
       - redis
-    container_name: alignwork_chat_app_celery
-    
+    container_name: audoji_chat_app_celery
+    restart: always
+
   redis:
     image: redis:latest
-    container_name: alignwork_chat_app_redis
+    container_name: audoji_chat_app_redis
+    restart: always

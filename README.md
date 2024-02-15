@@ -1,1 +1,1 @@
-# audoji_ai_cutter
+# Audoji AI Engine
