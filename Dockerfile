@@ -21,7 +21,7 @@ COPY . /code/
 
 # Install Python dependencies including Whisper
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install git+https://github.com/openai/whisper.git
+RUN pip install --no-cache-dir git+https://github.com/openai/whisper.git
 
 # # Collect static files
 # RUN python manage.py collectstatic --noinput

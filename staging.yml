@@ -6,7 +6,8 @@ services:
     volumes:
       - .:/code
     ports:
-      - “8000:8000”
+      # - “8000:8000”
+      - "127.0.0.1:${APP_PORT}:${APP_PORT}"
     depends_on:
       - redis
     container_name: audoji_chat_app
