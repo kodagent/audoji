@@ -1,2 +1,2 @@
 # audoji_ai_engine
-AI Engine codebase for audoji app
+This is the AI Engine codebase for audoji app.
