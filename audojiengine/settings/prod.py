@@ -2,20 +2,25 @@ import django_on_heroku
 
 from .base import *
 
+ALLOWED_HOSTS_FROM_ENV = get_origin_list("ALLOWED_HOSTS")
+
 DEBUG = False
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = [
+    "*"
+    # ALLOWED_HOSTS_FROM_ENV,
+]
 
 
 # ================================ DATABASES =======================================
-# DATABASES = {"default": dj_database_url.parse(config("DATABASE_URL"))}
+DATABASES = {"default": dj_database_url.parse(config("DATABASE_URL"))}
 # DATABASES["default"]["OPTIONS"] = {"sslmode": "require"}
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 # ================================ DATABASES =======================================
 
 
