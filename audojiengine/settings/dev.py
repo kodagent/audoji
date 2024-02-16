@@ -5,9 +5,9 @@ ALLOWED_HOSTS = ["*"]
 
 
 # ================================ SUPERUSER =======================================
-USERNAME=config("USERNAME")
-EMAIL=config("EMAIL")
-PASSWORD=config("PASSWORD")
+USERNAME = config("USERNAME")
+EMAIL = config("EMAIL")
+PASSWORD = config("PASSWORD")
 # ================================ SUPERUSER =======================================
 
 # ================================ DATABASES =======================================
