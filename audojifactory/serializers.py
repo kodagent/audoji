@@ -27,5 +27,5 @@ class AudioSegmentSerializer(serializers.ModelSerializer):
             "end_time",
             "segment_file",
             "transcription",
-            "mood",
+            "category",
         ]
