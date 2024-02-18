@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from audojifactory.models import AudioFile, AudioSegment
+from audojifactory.models import AudioFile, AudioSegment, UserSelectedAudoji
 
 
 class AudioFileSerializer(serializers.ModelSerializer):
@@ -18,6 +18,8 @@ class AudioFileSerializer(serializers.ModelSerializer):
 
 
 class AudioSegmentSerializer(serializers.ModelSerializer):
+    is_selected = serializers.SerializerMethodField()
+
     class Meta:
         model = AudioSegment
         fields = [
@@ -28,4 +30,15 @@ class AudioSegmentSerializer(serializers.ModelSerializer):
             "segment_file",
             "transcription",
             "category",
+            "is_selected",
         ]
+
+    def get_is_selected(self, obj):
+        # Assuming 'self.context['request'].user_id' is the way to access the user_id in your context
+        # You need to ensure that 'user_id' is passed to the serializer context in your view.
+        request = self.context.get('request')
+        if request and hasattr(request, 'query_params'):
+            user_id = request.query_params.get("user_id")
+            if user_id is not None:
+                return UserSelectedAudoji.objects.filter(user_id=user_id, audio_segment=obj).exists()
+        return False

@@ -172,9 +172,10 @@ class AudioSegmentList(APIView):
 
 
 class SelectAudoji(APIView):
-    def get(self, request):
-        user_id = request.query_params.get("user_id")
-        audio_segment_id = request.query_params.get("audio_segment_id")
+    def post(self, request):
+        user_id = request.data.get("user_id")
+        audio_segment_id = request.data.get("audio_segment_id")
+        action = request.data.get("action", "select")  # "select" or "deselect"
 
         if not user_id or not audio_segment_id:
             return Response(
@@ -182,19 +183,25 @@ class SelectAudoji(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Check if the audio segment exists
         audio_segment = get_object_or_404(AudioSegment, id=audio_segment_id)
 
-        # Create or update the selection
-        UserSelectedAudoji.objects.update_or_create(
-            user_id=user_id,
-            audio_segment=audio_segment,
-            defaults={"selected_at": timezone.now()},
-        )
+        if action == "select":
+            UserSelectedAudoji.objects.update_or_create(
+                user_id=user_id,
+                audio_segment=audio_segment,
+                defaults={"selected_at": timezone.now()},
+            )
+            message = "Audoji selected successfully."
+        elif action == "deselect":
+            UserSelectedAudoji.objects.filter(user_id=user_id, audio_segment=audio_segment).delete()
+            message = "Audoji deselected successfully."
+        else:
+            return Response(
+                {"error": "Invalid action."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        return Response(
-            {"message": "Audoji selected successfully."}, status=status.HTTP_200_OK
-        )
+        return Response({"message": message}, status=status.HTTP_200_OK)
 
 
 class SelectedAudojiList(generics.ListAPIView):
