@@ -11,7 +11,7 @@ services:
       - "8000:8000"
     depends_on:
       - redis
-    container_name: alignwork_chat_app
+    container_name: audoji_chat_app
   
   celery:
     build: 
@@ -22,8 +22,8 @@ services:
       - .:/code
     depends_on:
       - redis
-    container_name: alignwork_chat_app_celery
+    container_name: audoji_chat_app_celery
     
   redis:
     image: redis:latest
-    container_name: alignwork_chat_app_redis
+    container_name: audoji_chat_app_redis

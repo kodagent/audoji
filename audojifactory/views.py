@@ -122,7 +122,7 @@ class AudioSegmentList(APIView):
     """
     GET: Retrieve a list of all audio segments.
 
-    This endpoint provides a list of all audio segments available in the system. Each audio segment contains details such as start time, end time, associated audio file, transcription, and mood.
+    This endpoint provides a list of all audio segments available in the system. Each audio segment contains details such as start time, end time, associated audio file, transcription, and category.
 
     Response Format:
     [
@@ -133,7 +133,7 @@ class AudioSegmentList(APIView):
             "end_time": float,
             "segment_file": str,        // URL to the segment file
             "transcription": str,
-            "mood": str
+            "category": str
         },
         ...
     ]
@@ -156,16 +156,17 @@ class AudioSegmentList(APIView):
         segments_query = AudioSegment.objects.filter(audio_file__in=audio_files_query)
 
         # Optionally, add more filters for segments based on additional query params
-        # For example, filtering by transcription or mood
+        # For example, filtering by transcription or category
         transcription = request.query_params.get("transcription")
-        mood = request.query_params.get("mood")
+        category = request.query_params.get("category")
+
         if transcription:
             segments_query = segments_query.filter(
                 transcription__icontains=transcription
             )
-        if mood:
-            segments_query = segments_query.filter(mood__icontains=mood)
-
+        if category:
+            segments_query = segments_query.filter(category__icontains=category)
+            
         serializer = AudioSegmentSerializer(segments_query, many=True)
         return Response(serializer.data)
 

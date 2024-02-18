@@ -10,7 +10,7 @@ class AudioFile(models.Model):
     artiste = models.CharField(max_length=255)
     audio_file = models.FileField(upload_to="audio_files/")
     title = models.CharField(max_length=255)
-    cover_image = models.CharField(max_length=255)
+    cover_image = models.ImageField(upload_to="cover_images/", null=True, blank=True) 
     terms_condition = models.BooleanField(default=False)
     upload_date = models.DateTimeField(default=timezone.now)
 
@@ -31,14 +31,13 @@ class AudioSegment(models.Model):
         upload_to="audio_segments/", blank=True, null=True
     )
     transcription = models.TextField(blank=True, null=True)
-    category = models.CharField(max_length=100, blank=True, null=True)  # change to category
+    category = models.CharField(max_length=100, blank=True, null=True)
     # Added duration field to store the duration of the segment
     duration = models.FloatField(default=0.0, blank=True, null=True)
 
     def save(self, *args, **kwargs):
         self.duration = self.end_time - self.start_time
         super(AudioSegment, self).save(*args, **kwargs)
-
 
 
 class UserSelectedAudoji(models.Model):
