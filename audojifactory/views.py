@@ -192,13 +192,13 @@ class SelectAudoji(APIView):
                 audio_segment=audio_segment,
                 defaults={"selected_at": timezone.now()},
             )
-            segment_data = {
-                "user_id": user_id,
-                "user_id": audio_segment.transcription,
-                "user_id": audio_segment.start_time,
-                "user_id": audio_segment.end_time,
-            }
-            store_data_to_audio_segment_mgdb(segment_data)
+            # segment_data = {
+            #     "user_id": user_id,
+            #     "transcription": audio_segment.transcription,
+            #     "start_time": audio_segment.start_time,
+            #     "end_time": audio_segment.end_time,
+            # }
+            # store_data_to_audio_segment_mgdb(segment_data)
             message = "Audoji selected successfully."
             
         elif action == "deselect":
