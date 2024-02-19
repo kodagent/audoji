@@ -86,8 +86,10 @@ class AudioProcessor:
             await sync_to_async(audio_segment_instance.save)()
             
             # ==================== Create Audoji ====================
-            created_audoji = AudioRetrieval(audio_segment_instance, start, end).create_audoji()
-            logger.info("Audoji created!")
+            create_audoji_sync = sync_to_async(AudioRetrieval(audio_segment_instance, start, end).create_audoji)
+            created_audoji = await create_audoji_sync()
+
+            logger.info(f"Audoji created! {created_audoji}")
             # ==================== Create Audoji ====================
 
             segment_data["audio_file_id"] = self.audio_file_instance.id
