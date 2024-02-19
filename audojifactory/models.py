@@ -16,9 +16,9 @@ class AudioFile(models.Model):
 
 
 def get_segment_upload_path(instance, filename):
-    # Assuming 'title' is a field in 'AudioFile' model
-    # Replace 'title' with the appropriate field if different
-    return f"audio_segments/{instance.audio_file.title}/{filename}"
+    # Ensuring the title is filesystem-safe by replacing non-alphanumeric characters with "_"
+    safe_title = "".join([c if c.isalnum() else "_" for c in instance.audio_file.title])
+    return f"audio_segments/{safe_title}/{filename}"
 
 
 class AudioSegment(models.Model):
@@ -28,7 +28,7 @@ class AudioSegment(models.Model):
     start_time = models.FloatField()
     end_time = models.FloatField()
     segment_file = models.FileField(
-        upload_to="audio_segments/", blank=True, null=True
+        upload_to=get_segment_upload_path, blank=True, null=True
     )
     transcription = models.TextField(blank=True, null=True)
     category = models.CharField(max_length=100, blank=True, null=True)
