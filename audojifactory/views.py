@@ -17,6 +17,7 @@ from audojifactory.audojifactories.opensourcefactory import (
 from audojifactory.models import AudioFile, AudioSegment, UserSelectedAudoji
 from audojifactory.serializers import AudioFileSerializer, AudioSegmentSerializer
 from audojifactory.tasks import task_run_async_db_operation, task_run_async_processor
+from audojiengine.mg_database import store_data_to_audio_segment_mgdb
 
 logger = configure_logger(__name__)
 
@@ -191,7 +192,15 @@ class SelectAudoji(APIView):
                 audio_segment=audio_segment,
                 defaults={"selected_at": timezone.now()},
             )
+            segment_data = {
+                "user_id": user_id,
+                "user_id": audio_segment.transcription,
+                "user_id": audio_segment.start_time,
+                "user_id": audio_segment.end_time,
+            }
+            store_data_to_audio_segment_mgdb(segment_data)
             message = "Audoji selected successfully."
+            
         elif action == "deselect":
             UserSelectedAudoji.objects.filter(user_id=user_id, audio_segment=audio_segment).delete()
             message = "Audoji deselected successfully."
@@ -264,12 +273,36 @@ class GetAudoji(APIView):
         start_time = query_data.get("start_time")
         end_time = query_data.get("end_time")
 
-        segment_instance = AudioSegment.objects.get(
-            transcription=query, start_time=start_time, end_time=end_time
+        # Check if a matching segment already exists
+        existing_segments = AudioSegment.objects.filter(
+            transcription=query,
+            start_time__gte=start_time,
+            start_time__lte=start_time,  # Consider a small margin for start_time if needed
+            end_time__gte=end_time,
+            end_time__lte=end_time  # Consider a small margin for end_time if needed
         )
-        segment_info = OSAudioRetrieval(
-            segment_instance, start_time, end_time
-        ).create_audoji()
+        
+        if existing_segments.exists():
+            segment_instance = existing_segments.first()
+            segment_info = {
+                "id": segment_instance.id,
+                "start_time": segment_instance.start_time,
+                "end_time": segment_instance.end_time,
+                "transcription": segment_instance.transcription,
+                "file_url": segment_instance.segment_file.url,
+            }
+        else:
+            # If no existing segment, proceed to create a new one
+            try:
+                segment_instance = AudioSegment.objects.get(
+                    transcription=query, start_time=start_time, end_time=end_time
+                )
+                segment_info = OSAudioRetrieval(
+                    segment_instance, start_time, end_time
+                ).create_audoji()
+            except Exception as e:
+                logger.error(f"Error creating audio segment: {e}")
+                return Response({"error": "Error creating audio segment"}, status=400)
 
         duration = time.time() - process_start_time
         logger.info(f"AUDOJI CREATION DURATION: {duration:.2f} seconds")
