@@ -82,8 +82,13 @@ class AudioProcessor:
                 "category": category,
             }
             audio_segment_instance = AudioSegmentModel(**segment_data)
-            print('This is the what I am checking: ', audio_segment_instance)
+            
             await sync_to_async(audio_segment_instance.save)()
+            
+            # ==================== Create Audoji ====================
+            created_audoji = AudioRetrieval(audio_segment_instance, start, end).create_audoji()
+            logger.info("Audoji created!")
+            # ==================== Create Audoji ====================
 
             segment_data["audio_file_id"] = self.audio_file_instance.id
 
