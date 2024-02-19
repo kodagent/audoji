@@ -17,7 +17,6 @@ from audojifactory.audojifactories.opensourcefactory import (
 from audojifactory.models import AudioFile, AudioSegment, UserSelectedAudoji
 from audojifactory.serializers import AudioFileSerializer, AudioSegmentSerializer
 from audojifactory.tasks import task_run_async_db_operation, task_run_async_processor
-from audojiengine.mg_database import store_data_to_audio_segment_mgdb
 
 logger = configure_logger(__name__)
 
@@ -134,7 +133,8 @@ class AudioSegmentList(APIView):
             "end_time": float,
             "segment_file": str,        // URL to the segment file
             "transcription": str,
-            "category": str
+            "category": str,
+            "is_selected": bool,
         },
         ...
     ]
@@ -167,7 +167,7 @@ class AudioSegmentList(APIView):
             )
         if category:
             segments_query = segments_query.filter(category__icontains=category)
-            
+
         serializer = AudioSegmentSerializer(segments_query, many=True)
         return Response(serializer.data)
 
@@ -200,9 +200,11 @@ class SelectAudoji(APIView):
             # }
             # store_data_to_audio_segment_mgdb(segment_data)
             message = "Audoji selected successfully."
-            
+
         elif action == "deselect":
-            UserSelectedAudoji.objects.filter(user_id=user_id, audio_segment=audio_segment).delete()
+            UserSelectedAudoji.objects.filter(
+                user_id=user_id, audio_segment=audio_segment
+            ).delete()
             message = "Audoji deselected successfully."
         else:
             return Response(
@@ -279,9 +281,9 @@ class GetAudoji(APIView):
             start_time__gte=start_time,
             start_time__lte=start_time,  # Consider a small margin for start_time if needed
             end_time__gte=end_time,
-            end_time__lte=end_time  # Consider a small margin for end_time if needed
+            end_time__lte=end_time,  # Consider a small margin for end_time if needed
         )
-        
+
         if existing_segments.exists():
             segment_instance = existing_segments.first()
             segment_info = {
