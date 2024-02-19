@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import requests
 import tempfile
 
 import librosa
@@ -81,12 +82,17 @@ class AudioProcessor:
                 "category": category,
             }
             audio_segment_instance = AudioSegmentModel(**segment_data)
-            print('This is the what I am checking: ', audio_segment_instance)
+            
             await sync_to_async(audio_segment_instance.save)()
+            
+            # ==================== Create Audoji ====================
+            create_audoji_sync = sync_to_async(AudioRetrieval(audio_segment_instance, start, end).create_audoji)
+            created_audoji = await create_audoji_sync()
+
+            logger.info(f"Audoji created! {created_audoji}")
+            # ==================== Create Audoji ====================
 
             segment_data["audio_file_id"] = self.audio_file_instance.id
-            del segment_data["audio_file"]
-            await store_data_to_audio_segment_mgdb(segment_data)
 
             logger.info(
                 f"Segment {i} exported and saved: Text: {segment.get('text', '')} | Start - {segment['start']}s, End - {segment['end']}s"
@@ -105,13 +111,19 @@ class AudioRetrieval:
         self.audio_file_instance = matching_segment_instance
         self.segment_id = matching_segment_instance.id
         self.associated_audio_file = (
-            matching_segment_instance.audio_file.audio_file.path
+            # matching_segment_instance.audio_file.audio_file.path
+            matching_segment_instance.audio_file.audio_file.url
         )
         self.start_time = start_time
         self.end_time = end_time
 
     def create_audoji(self):
-        audio = AudioSegmentCreator.from_file(self.associated_audio_file)
+        # Download the audio file from URL to a bytes buffer
+        audio_response = requests.get(self.associated_audio_file)
+        audio_bytes = io.BytesIO(audio_response.content)
+
+        # Use Pydub to process the audio from the bytes buffer
+        audio = AudioSegmentCreator.from_file(audio_bytes)
         start_ms, end_ms = float(self.start_time * 1000), float(self.end_time * 1000)
         segment_audio = audio[start_ms:end_ms]
 
@@ -120,7 +132,14 @@ class AudioRetrieval:
         segment_audio.export(segment_file, format="mp3", bitrate="192k")
         segment_file.seek(0)
 
+        # Extract the title of the audio file to use in the segment file name
+        audio_title = self.audio_file_instance.audio_file.title
+        safe_title = "".join([c if c.isalnum() else "_" for c in audio_title])  # Create a filesystem-safe version of the title
         segment_file_name = f"segment_{self.segment_id}.mp3"
+
+        # Use the custom upload path function if needed
+        # segment_file_path = get_segment_upload_path(self.audio_file_instance, segment_file_name)
+
         self.audio_file_instance.segment_file.save(
             segment_file_name, ContentFile(segment_file.read()), save=False
         )
