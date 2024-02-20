@@ -133,7 +133,8 @@ class AudioSegmentList(APIView):
             "end_time": float,
             "segment_file": str,        // URL to the segment file
             "transcription": str,
-            "category": str
+            "category": str,
+            "is_selected": bool,
         },
         ...
     ]

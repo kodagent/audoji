@@ -3,7 +3,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 import json
 from channels.db import database_sync_to_async
 from audojifactory.models import AudioFile, AudioSegment
-from audojifactory.serializers import AudioSegmentSerializer
+from audojifactory.serializers import AudioSegmentSerializerWebSocket
 
 class AudioSegmentConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -40,5 +40,6 @@ class AudioSegmentConsumer(AsyncWebsocketConsumer):
         if category:
             segments_query = segments_query.filter(category__icontains=category)
 
-        serializer = AudioSegmentSerializer(segments_query, many=True)
+        # Modify the serializer instantiation to include the user_id in the context
+        serializer = AudioSegmentSerializerWebSocket(segments_query, many=True, context={'user_id': user_id})
         return serializer.data
