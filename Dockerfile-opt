@@ -1,0 +1,41 @@
+# Use an official Python runtime as a parent image
+FROM python:3.10-slim as builder
+
+# Set environment variables to reduce Python bytecode generation and unbuffered logging
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# Install build dependencies and ffmpeg in a single RUN statement to reduce layers
+# Also, combine apt-get update with apt-get install and cleanup to reduce image size
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set the working directory in the container
+WORKDIR /code
+
+# Use a multi-stage build to reduce final image size
+# First, copy only the requirements file and install Python dependencies
+COPY requirements.txt /code/
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir git+https://github.com/openai/whisper.git
+
+# Copy the rest of the project
+COPY . /code/
+
+# Use an official Python runtime as a base image for the final build stage
+FROM python:3.10-slim
+
+# Copy installed Python dependencies from builder
+COPY --from=builder /usr/local /usr/local
+
+# Copy project files from builder
+WORKDIR /code
+COPY --from=builder /code /code
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# Run the application
+CMD ["daphne", "audojiengine.asgi:application", "--port", "$PORT", "--bind", "0.0.0.0"]

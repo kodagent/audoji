@@ -1,0 +1,29 @@
+version: '3'
+services:
+  web:
+    build: 
+      context: .
+      dockerfile: Dockerfile-opt
+    command: daphne audojiengine.asgi:application -b 0.0.0.0 -p 8000
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    container_name: audoji_chat_app
+  
+  celery:
+    build: 
+      context: .
+      dockerfile: Dockerfile-opt
+    command: celery -A audojiengine worker --loglevel=info
+    volumes:
+      - .:/code
+    depends_on:
+      - redis
+    container_name: audoji_chat_app_celery
+    
+  redis:
+    image: redis:latest
+    container_name: audoji_chat_app_redis

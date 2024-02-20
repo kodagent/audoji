@@ -1,6 +1,6 @@
 {
     "name": "Audoji Chat App Development",
-    "dockerComposeFile": "docker-compose.yml",
+    "dockerComposeFile": "docker-compose-opt.yml",
     "service": "web",
     "workspaceFolder": "/code",
     "settings": { 
