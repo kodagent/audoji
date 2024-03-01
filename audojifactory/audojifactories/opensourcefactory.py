@@ -8,6 +8,7 @@ import openai
 import requests
 from asgiref.sync import sync_to_async
 from channels.layers import get_channel_layer
+from decouple import config
 from django.conf import settings
 from django.core.files.base import ContentFile
 from openai import AsyncOpenAI
@@ -31,7 +32,7 @@ class AudioProcessor:
         # self.audio_path = audio_file_instance.audio_file.path
         self.audio_path = audio_file_instance.audio_file.url
         self.model = whisper.load_model(
-            "base"
+            config("MODEL_SIZE")
         )  # "base", "medium", "large-v1", "large-v2", "large-v3", "large"
 
     async def send_segment_to_group(self, segment_data):
