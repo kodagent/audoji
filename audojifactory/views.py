@@ -243,17 +243,22 @@ class GetAudoji(APIView):
     """
     POST: Retrieve a specific audio segment based on transcription and time range.
 
-    Input:
-    - query: Transcription text to match (mandatory).
-    - start_time: Starting time of the segment (mandatory).
-    - end_time: Ending time of the segment (mandatory).
+    For Retrieval:
+    - Input:
+        {
+            "operation": "retrieve",
+            "query": "transcription text",  # Transcription text to match (mandatory)
+            "start_time": float,  # Starting time of the segment (mandatory).
+            "end_time": float  # Ending time of the segment (mandatory).
+        }
 
-    Request JSON Structure:
-    {
-        "query": "transcription text",
-        "start_time": float,
-        "end_time": float
-    }
+    For Editing:
+    - Input:
+        {
+            "operation": "edit",
+            "id": int,
+            "transcription": "new transcription text"
+        }
 
     Output:
     - Details of the matching audio segment.
@@ -270,9 +275,18 @@ class GetAudoji(APIView):
     """
 
     def post(self, request):
-        process_start_time = time.time()
         query_data = request.data
+        operation = query_data.get("operation", "retrieve")
 
+        if operation == "retrieve":
+            return self.handle_retrieve(query_data)
+        elif operation == "edit":
+            return self.handle_edit(query_data)
+        else:
+            return Response({"error": "Invalid operation"}, status=400)
+
+    def handle_retrieve(self, query_data):
+        process_start_time = time.time()
         query = query_data.get("query")
         start_time = query_data.get("start_time")
         end_time = query_data.get("end_time")
@@ -288,13 +302,7 @@ class GetAudoji(APIView):
 
         if existing_segments.exists():
             segment_instance = existing_segments.first()
-            segment_info = {
-                "id": segment_instance.id,
-                "start_time": segment_instance.start_time,
-                "end_time": segment_instance.end_time,
-                "transcription": segment_instance.transcription,
-                "file_url": segment_instance.segment_file.url,
-            }
+            segment_info = self.format_segment_info(segment_instance)
         else:
             # If no existing segment, proceed to create a new one
             try:
@@ -311,6 +319,28 @@ class GetAudoji(APIView):
         duration = time.time() - process_start_time
         logger.info(f"AUDOJI CREATION DURATION: {duration:.2f} seconds")
         return Response(segment_info)
+
+    def handle_edit(self, query_data):
+        segment_id = query_data.get("id")
+        new_transcription = query_data.get("transcription")
+
+        try:
+            segment_instance = AudioSegment.objects.get(id=segment_id)
+            segment_instance.transcription = new_transcription
+            segment_instance.save()
+            segment_info = self.format_segment_info(segment_instance)
+            return Response(segment_info)
+        except AudioSegment.DoesNotExist:
+            return Response({"error": "Audio segment not found"}, status=404)
+
+    def format_segment_info(self, segment):
+        return {
+            "id": segment.id,
+            "start_time": segment.start_time,
+            "end_time": segment.end_time,
+            "transcription": segment.transcription,
+            "file_url": segment.segment_file.url,
+        }
 
 
 # {
