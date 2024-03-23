@@ -99,7 +99,7 @@ class AudioProcessor:
                 response_format={"type": "json_object"},
             )
             processed_response = json.loads(response.choices[0].message.content)
-            logger.info(f"Categorization response: {processed_response}")
+            # logger.info(f"Categorization response: {processed_response}")
             category = processed_response.get("category", None)
             return category
         except openai.APIError as e:
@@ -129,7 +129,7 @@ class AudioProcessor:
 
     async def seconds_to_milliseconds(self, seconds):
         """Converts seconds to milliseconds."""
-        return int(seconds * 1000)
+        return seconds * 1000
 
     async def process_and_save_segments(self, transcript_result):
         logger.info("Processing Started")
