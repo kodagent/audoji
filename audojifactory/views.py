@@ -90,7 +90,7 @@ class AudioFileList(APIView):
                     db_thread.start()
 
                     # Set a default of os
-                    model_type = request.query_params.get("model_type", "os")
+                    model_type = request.query_params.get("model_type", "")
 
                     # # Call the Celery task for DB operation
                     # task_run_async_db_operation.delay(data)

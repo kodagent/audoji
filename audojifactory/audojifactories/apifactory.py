@@ -198,28 +198,3 @@ class AudioProcessor:
 # audio_file_instance = [Your AudioFile instance]
 # processor = AudioProcessor(audio_file_instance)
 # processor.run_and_save_segments(audio_file_instance)
-
-
-
-# async def transcribe_audio(self):
-#         try:
-#             # Download the audio file content from the URL
-#             audio_content = requests.get(self.audio_path).content
-            
-#             # Use a temporary file to hold the audio data
-#             with tempfile.NamedTemporaryFile(delete=True) as temp_audio_file:
-#                 temp_audio_file.write(audio_content)
-#                 temp_audio_file.seek(0)  # Go to the start of the file
-                
-#                 # Now you have a temporary file on your disk that will be automatically deleted
-#                 # Perform the transcription using the temporary file
-#                 transcript = openai.Audio.transcriptions.create(
-#                     file=temp_audio_file.name,
-#                     model="whisper-1",
-#                     response_format="verbose_json",
-#                     timestamp_granularities=["word", "segment"],
-#                 )
-#             return transcript
-#         except Exception as e:
-#             print(f"Error during transcription: {e}")
-#             return None

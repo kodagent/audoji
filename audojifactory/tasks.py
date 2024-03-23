@@ -10,7 +10,7 @@ from audojifactory.audojifactories.opensourcefactory import (
 from audojifactory.models import AudioFile
 
 
-# @shared_task
+@shared_task
 def task_run_async_processor(audio_file_instance_id, model_type, group_name=None):   
     # Retrieve the audio file instance by ID
     audio_file_instance = AudioFile.objects.get(id=audio_file_instance_id)
