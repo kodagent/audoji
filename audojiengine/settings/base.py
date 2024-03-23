@@ -212,4 +212,6 @@ MONGO_DB_NAME = config("MONGO_DB_NAME")
 OPENAI_API_KEY = config("OPENAI_API_KEY")
 ASSISTANT_ID = config("ASSISTANT_ID")
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+
+MODEL_SIZE = config("MODEL_SIZE")
 # ================================ CUSTOM VARIABLES =======================================
