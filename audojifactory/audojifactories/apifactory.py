@@ -81,15 +81,26 @@ class AudioProcessor:
     async def analyze_category_async(self, transcription):
         logger.info("Analysing categories")
 
-        categories = "Affection, Gratitude, Apologies, Excitement, Disinterest, Well-being, Greetings"
+        # Fetch categories from the database
+        categories = ", ".join(Category.objects.values_list('name', flat=True))
 
-        prompt = f"""Here's an example of how I want you to categorize the text: \n
-            Text: 'I feel amazing today!' Response: {{'category': 'Excitement'}}\n\n
+        # categories = "Affection, Gratitude, Apologies, Excitement, Disinterest, Well-being, Greetings"
+        categories = "Hello, Goodbye, Yes, No, I'm good, Thank You, Sorry, Love You, Miss You, I Don't Know, Wanna Hang?, Hook-Up, Looking Good, BRB, On My Way, Party Time, OMG, Excited, Stressed Out, Mad, Sad, Who Cares, Where Are You?, Hungover, Break-Up, Call Me"
+        
+        prompt = f"""Here are examples of how I want you to categorize the text: \n
+            Text: 'love ya!' Response: {{'category': 'Love You'}}\n\n
+            Text: 'thinking about you!' Response: {{'category': 'Miss You'}}\n\n
+            Text: 'netflix and chill' or 'I am horny' Response: {{'category': 'Hook-Up'}}\n\n
+            Text: 'be right back' or 'just a minute' Response: {{'category': 'BRB'}}\n\n
+            Text: 'be right there' or 'see you soon' Response: {{'category': 'On My Way'}}\n\n
+            Text: 'tgif' or 'celebrate' Response: {{'category': 'Party Time'}}\n\n
+            Text: 'heart broken' or 'i hate you' Response: {{'category': 'Break-Up'}}\n\n
             Now, using the same format, categorize the following text as {categories}, and respond in JSON format: \n
-            Text: '{transcription}'\nResponse: 
+            Text: '{transcription}'
+            Response: 
 
             # SAMPLE FORMAT:
-            {{'category': 'Excitement'}}"""
+            {{'category': 'Party Time'}}"""
 
         try:
             response = await openai_client.chat.completions.create(
@@ -101,6 +112,10 @@ class AudioProcessor:
             processed_response = json.loads(response.choices[0].message.content)
             # logger.info(f"Categorization response: {processed_response}")
             category = processed_response.get("category", None)
+            
+            # # Check if this category exists in the database
+            # category, created = Category.objects.get_or_create(name=category)
+            
             return category
         except openai.APIError as e:
             logger.error(f"OpenAI API error: {e}")
