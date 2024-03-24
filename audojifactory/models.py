@@ -32,7 +32,8 @@ class AudioSegment(models.Model):
     )
     transcription = models.TextField(blank=True, null=True)
     category = models.CharField(max_length=100, blank=True, null=True)
-    # Added duration field to store the duration of the segment
+    # To be used when categories can be created by the code
+    # category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
     duration = models.FloatField(default=0.0, blank=True, null=True)
 
     def save(self, *args, **kwargs):
@@ -47,3 +48,11 @@ class UserSelectedAudoji(models.Model):
 
     class Meta:
         unique_together = ('user_id', 'audio_segment')
+
+
+# To be used when new categories can be created by the code
+# class Category(models.Model):
+#     name = models.CharField(max_length=100, unique=True)
+
+#     def __str__(self):
+#         return self.name
