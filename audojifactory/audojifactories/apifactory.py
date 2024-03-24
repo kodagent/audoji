@@ -82,7 +82,7 @@ class AudioProcessor:
         logger.info("Analysing categories")
 
         # Fetch categories from the database
-        categories = ", ".join(Category.objects.values_list('name', flat=True))
+        # categories = ", ".join(Category.objects.values_list('name', flat=True))
 
         # categories = "Affection, Gratitude, Apologies, Excitement, Disinterest, Well-being, Greetings"
         categories = "Hello, Goodbye, Yes, No, I'm good, Thank You, Sorry, Love You, Miss You, I Don't Know, Wanna Hang?, Hook-Up, Looking Good, BRB, On My Way, Party Time, OMG, Excited, Stressed Out, Mad, Sad, Who Cares, Where Are You?, Hungover, Break-Up, Call Me"
