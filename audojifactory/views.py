@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 
 from audojiengine.logging_config import configure_logger
 from audojiengine.mg_database import store_data_to_audio_mgdb
+from audojifactory.audojifactories.opensourcefactory import AudioRetrieval
 from audojifactory.audojifactories.opensourcefactory import (
     AudioRetrieval as OSAudioRetrieval,
 )
@@ -358,17 +359,32 @@ class GetAudoji(APIView):
     def handle_edit(self, query_data):
         segment_id = query_data.get("id")
         new_transcription = query_data.get("transcription")
-        start_time = query_data.get("start_time")
-        end_time = query_data.get("end_time")
+        start_time = query_data.get("start_time", None)
+        end_time = query_data.get("end_time", None)
 
         try:
             segment_instance = AudioSegment.objects.get(id=segment_id)
             segment_instance.transcription = new_transcription
-            segment_instance.save()
+            if start_time is not None and end_time is not None:
+                # ==================== Create Audoji ====================
+                created_audoji = AudioRetrieval(
+                    segment_instance, start_time, end_time
+                ).create_audoji()
+                logger.info(f"Audoji edited! {created_audoji}")
+
+                # Refresh to ensure we have the latest data
+                segment_instance.refresh_from_db()
+                # ==================== Create Audoji ====================
+            else:
+                segment_instance.save()
+
             segment_info = self.format_segment_info(segment_instance)
             return Response(segment_info)
         except AudioSegment.DoesNotExist:
             return Response({"error": "Audio segment not found"}, status=404)
+        except Exception as e:
+            logger.error(f"Error processing audio segment edit: {e}")
+            return Response({"error": "Error processing request"}, status=400)
 
     def format_segment_info(self, segment):
         return {
