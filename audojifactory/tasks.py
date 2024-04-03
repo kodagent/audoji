@@ -12,7 +12,7 @@ from audojifactory.models import AudioFile
 
 
 @shared_task
-def task_run_async_processor(audio_file_instance_id, model_type, group_name=None):
+def task_run_async_processor(audio_file_instance_id, model_type, group_name=None):   
     # Retrieve the audio file instance by ID
     audio_file_instance = AudioFile.objects.get(id=audio_file_instance_id)
 
@@ -23,7 +23,7 @@ def task_run_async_processor(audio_file_instance_id, model_type, group_name=None
     if model_type == "os":
         audio_processor = OSAudioProcessor(audio_file_instance, group_name)
     else:
-        audio_processor = APIAudioProcessor(audio_file_instance)
+        audio_processor = APIAudioProcessor(audio_file_instance, group_name)
 
     # Run the processor asynchronously
     loop.run_until_complete(audio_processor.run_and_save_segments())
