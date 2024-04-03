@@ -3,6 +3,7 @@ import json
 import os
 import tempfile
 
+import boto3
 import librosa
 import openai
 import requests
@@ -124,6 +125,99 @@ class AudioProcessor:
         logger.info("Run operation started!")
         transcription_result = await self.transcribe_audio()
         return await self.process_and_save_segments(transcription_result)
+
+
+class AudioProcessorAWS:
+    def __init__(self, audio_file_url, transcription_result, group_name=None):
+        self.group_name = group_name
+        self.audio_path = audio_file_url
+        self.transcription_result = transcription_result
+
+    async def send_segment_to_group(self, segment_data):
+        channel_layer = get_channel_layer()
+        await channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "audio.segment",
+                "message": segment_data,
+            },
+        )
+
+    async def analyze_category_async(self, transcription):
+        logger.info("Analysing categories")
+
+        categories = "Affection, Gratitude, Apologies, Excitement, Disinterest, Well-being, Greetings"
+
+        prompt = f"""Here's an example of how I want you to categorize the text: \n
+            Text: 'I feel amazing today!' Response: {{'category': 'Excitement'}}\n\n
+            Now, using the same format, categorize the following text as {categories}, and respond in JSON format: \n
+            Text: '{transcription}'\nResponse: 
+
+            # SAMPLE FORMAT:
+            {{'category': 'Excitement'}}"""
+
+        try:
+            response = await openai_client.chat.completions.create(
+                model="gpt-4-1106-preview",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1000,
+                response_format={"type": "json_object"},
+            )
+            processed_response = json.loads(response.choices[0].message.content)
+            logger.info(f"This is the response: {processed_response}")
+            category = processed_response.get("category", None)
+            return category
+        except openai.APIError as e:
+            logger.error(f"OpenAI API error: {e}")
+            return None
+
+    async def process_and_save_segments(self, result):
+        logger.info("Processing Started")
+        segments_data = []
+
+        for i, segment in enumerate(result["segments"]):
+            transcription = segment.get("text", "").strip()
+            category = await self.analyze_category_async(transcription)
+
+            start = segment["start"]
+            end = segment["end"]
+
+            # Create a segment instance and save it to the database
+            segment_data = {
+                "audio_file": self.audio_file_instance,
+                "start_time": start,
+                "end_time": end,
+                "transcription": transcription,
+                "category": category,
+            }
+            audio_segment_instance = AudioSegmentModel(**segment_data)
+
+            await sync_to_async(audio_segment_instance.save)()
+
+            # ==================== Create Audoji ====================
+            create_audoji_sync = sync_to_async(
+                AudioRetrieval(audio_segment_instance, start, end).create_audoji
+            )
+            created_audoji = await create_audoji_sync()
+
+            logger.info(f"Audoji created! {created_audoji}")
+            # ==================== Create Audoji ====================
+
+            segment_data["audio_file_id"] = self.audio_file_instance.id
+
+            await self.send_segment_to_group(
+                AudioSegmentSerializer(audio_segment_instance).data
+            )
+
+            logger.info(
+                f"Segment {i} exported and saved: Text: {segment.get('text', '')} | Start - {segment['start']}s, End - {segment['end']}s"
+            )
+
+        logger.info("Done Creating Audojis")
+
+    async def run_and_save_segments(self):
+        logger.info("Run operation started!")
+        return await self.process_and_save_segments(self.transcription_result)
 
 
 class AudioRetrieval:

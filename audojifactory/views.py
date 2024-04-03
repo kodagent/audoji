@@ -1,8 +1,11 @@
 import asyncio
+import json
 import time
 from threading import Thread
 
+from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -16,7 +19,12 @@ from audojifactory.audojifactories.opensourcefactory import (
 )
 from audojifactory.models import AudioFile, AudioSegment, UserSelectedAudoji
 from audojifactory.serializers import AudioFileSerializer, AudioSegmentSerializer
-from audojifactory.tasks import task_run_async_db_operation, task_run_async_processor
+from audojifactory.tasks import (
+    task_run_async_complete_processing,
+    task_run_async_db_operation,
+    task_run_async_processor,
+    task_run_async_processor_AWS,
+)
 
 logger = configure_logger(__name__)
 
@@ -95,10 +103,15 @@ class AudioFileList(APIView):
                     # # Call the Celery task for DB operation
                     # task_run_async_db_operation.delay(data)
 
+                    # Define the callback URL where AWS service will send back the transcription result
+                    callback_url = request.build_absolute_uri(
+                        reverse("transcription_result")
+                    )
+
                     # Call the Celery task for processing and create a unique group name per user
                     group_name = f"user_{owner_id}"
-                    task_run_async_processor.delay(
-                        audio_file_instance.id, model_type, group_name
+                    task_run_async_processor_AWS.delay(
+                        audio_file_instance.id, model_type, group_name, callback_url
                     )
 
                     duration = time.time() - process_start_time
@@ -119,6 +132,27 @@ class AudioFileList(APIView):
 
         # Return the collected responses for all files processed
         return Response(responses, status=status.HTTP_201_CREATED)
+
+
+class AWSTranscription(APIView):
+    def post(self, request):
+        process_start_time = time.time()
+        try:
+            data = json.loads(request.body)
+            audio_file_url = data["audio_file_url"]
+            group_name = data["group_name"]
+            transcription_result = data["transcription_result"]
+
+            task_run_async_complete_processing.delay(
+                audio_file_url, transcription_result, group_name
+            )
+
+            duration = time.time() - process_start_time
+            logger.info(f"CREATION DURATION: {duration:.2f} seconds")
+
+            return Response({"status": "success"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return HttpResponseBadRequest(json.dumps({"error": str(e)}))
 
 
 class AudioSegmentList(APIView):
@@ -324,6 +358,8 @@ class GetAudoji(APIView):
     def handle_edit(self, query_data):
         segment_id = query_data.get("id")
         new_transcription = query_data.get("transcription")
+        start_time = query_data.get("start_time")
+        end_time = query_data.get("end_time")
 
         try:
             segment_instance = AudioSegment.objects.get(id=segment_id)
