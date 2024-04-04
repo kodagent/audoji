@@ -13,6 +13,7 @@ class AudioFile(models.Model):
     cover_image = models.ImageField(upload_to="cover_images/", null=True, blank=True) 
     terms_condition = models.BooleanField(default=False)
     upload_date = models.DateTimeField(default=timezone.now)
+    duration = models.FloatField(null=True, blank=True)
 
 
 def get_segment_upload_path(instance, filename):

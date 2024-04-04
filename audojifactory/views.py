@@ -393,6 +393,7 @@ class GetAudoji(APIView):
             "end_time": segment.end_time,
             "transcription": segment.transcription,
             "file_url": segment.segment_file.url,
+            "audio_full_duration": segment.audio_file.duration
         }
 
 
