@@ -7,6 +7,7 @@ from audojifactory.audojifactories.apifactory import AudioProcessor as APIAudioP
 from audojifactory.audojifactories.opensourcefactory import (
     AudioProcessor as OSAudioProcessor,
 )
+from audojifactory.audojifactories.opensourcefactory import AudioProcessorAWS
 from audojifactory.models import AudioFile
 
 
@@ -23,6 +24,34 @@ def task_run_async_processor(audio_file_instance_id, model_type, group_name=None
         audio_processor = OSAudioProcessor(audio_file_instance, group_name)
     else:
         audio_processor = APIAudioProcessor(audio_file_instance, group_name)
+
+    # Run the processor asynchronously
+    loop.run_until_complete(audio_processor.run_and_save_segments())
+    loop.close()
+
+
+@shared_task
+def task_run_async_processor_AWS(
+    audio_file_instance_id, model_type, group_name, callback_url
+):
+    audio_file_instance = AudioFile.objects.get(id=audio_file_instance_id)
+    audio_file_url = audio_file_instance.audio_file.url
+
+    # # Replace this with actual code to invoke your AWS-based transcription
+    # invoke_transcription_service(audio_file_url, callback_url)
+
+
+@shared_task
+def task_run_async_complete_processing(
+    audio_file_url, transcription_result, group_name=None
+):
+    # Setup event loop for async function
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    audio_processor = AudioProcessorAWS(
+        audio_file_url, transcription_result, group_name
+    )
 
     # Run the processor asynchronously
     loop.run_until_complete(audio_processor.run_and_save_segments())

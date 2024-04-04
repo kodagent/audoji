@@ -1,8 +1,11 @@
 import asyncio
+import json
 import time
 from threading import Thread
 
+from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -11,12 +14,18 @@ from rest_framework.views import APIView
 
 from audojiengine.logging_config import configure_logger
 from audojiengine.mg_database import store_data_to_audio_mgdb
+from audojifactory.audojifactories.opensourcefactory import AudioRetrieval
 from audojifactory.audojifactories.opensourcefactory import (
     AudioRetrieval as OSAudioRetrieval,
 )
 from audojifactory.models import AudioFile, AudioSegment, UserSelectedAudoji
 from audojifactory.serializers import AudioFileSerializer, AudioSegmentSerializer
-from audojifactory.tasks import task_run_async_db_operation, task_run_async_processor
+from audojifactory.tasks import (
+    task_run_async_complete_processing,
+    task_run_async_db_operation,
+    task_run_async_processor,
+    task_run_async_processor_AWS,
+)
 
 logger = configure_logger(__name__)
 
@@ -95,6 +104,11 @@ class AudioFileList(APIView):
                     # # Call the Celery task for DB operation
                     # task_run_async_db_operation.delay(data)
 
+                    # Define the callback URL where AWS service will send back the transcription result
+                    callback_url = request.build_absolute_uri(
+                        reverse("transcription_result")
+                    )
+
                     # Call the Celery task for processing and create a unique group name per user
                     group_name = f"user_{owner_id}"
                     task_run_async_processor.delay(
@@ -119,6 +133,27 @@ class AudioFileList(APIView):
 
         # Return the collected responses for all files processed
         return Response(responses, status=status.HTTP_201_CREATED)
+
+
+class AWSTranscription(APIView):
+    def post(self, request):
+        process_start_time = time.time()
+        try:
+            data = json.loads(request.body)
+            audio_file_url = data["audio_file_url"]
+            group_name = data["group_name"]
+            transcription_result = data["transcription_result"]
+
+            task_run_async_complete_processing.delay(
+                audio_file_url, transcription_result, group_name
+            )
+
+            duration = time.time() - process_start_time
+            logger.info(f"CREATION DURATION: {duration:.2f} seconds")
+
+            return Response({"status": "success"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return HttpResponseBadRequest(json.dumps({"error": str(e)}))
 
 
 class AudioSegmentList(APIView):
@@ -324,15 +359,32 @@ class GetAudoji(APIView):
     def handle_edit(self, query_data):
         segment_id = query_data.get("id")
         new_transcription = query_data.get("transcription")
+        start_time = query_data.get("start_time", None)
+        end_time = query_data.get("end_time", None)
 
         try:
             segment_instance = AudioSegment.objects.get(id=segment_id)
             segment_instance.transcription = new_transcription
-            segment_instance.save()
+            if start_time is not None and end_time is not None:
+                # ==================== Create Audoji ====================
+                created_audoji = AudioRetrieval(
+                    segment_instance, start_time, end_time
+                ).create_audoji()
+                logger.info(f"Audoji edited! {created_audoji}")
+
+                # Refresh to ensure we have the latest data
+                segment_instance.refresh_from_db()
+                # ==================== Create Audoji ====================
+            else:
+                segment_instance.save()
+
             segment_info = self.format_segment_info(segment_instance)
             return Response(segment_info)
         except AudioSegment.DoesNotExist:
             return Response({"error": "Audio segment not found"}, status=404)
+        except Exception as e:
+            logger.error(f"Error processing audio segment edit: {e}")
+            return Response({"error": "Error processing request"}, status=400)
 
     def format_segment_info(self, segment):
         return {
@@ -341,6 +393,7 @@ class GetAudoji(APIView):
             "end_time": segment.end_time,
             "transcription": segment.transcription,
             "file_url": segment.segment_file.url,
+            "audio_full_duration": segment.audio_file.duration
         }
 
 
