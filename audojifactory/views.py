@@ -111,8 +111,8 @@ class AudioFileList(APIView):
 
                     # Call the Celery task for processing and create a unique group name per user
                     group_name = f"user_{owner_id}"
-                    task_run_async_processor_AWS.delay(
-                        audio_file_instance.id, model_type, group_name, callback_url
+                    task_run_async_processor.delay(
+                        audio_file_instance.id, model_type, group_name
                     )
 
                     duration = time.time() - process_start_time
@@ -393,6 +393,7 @@ class GetAudoji(APIView):
             "end_time": segment.end_time,
             "transcription": segment.transcription,
             "file_url": segment.segment_file.url,
+            "audio_full_duration": segment.audio_file.duration
         }
 
 
