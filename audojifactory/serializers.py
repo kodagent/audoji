@@ -19,6 +19,7 @@ class AudioFileSerializer(serializers.ModelSerializer):
 
 class AudioSegmentSerializer(serializers.ModelSerializer):
     is_selected = serializers.SerializerMethodField()
+    audio_full_duration = serializers.SerializerMethodField()
 
     class Meta:
         model = AudioSegment
@@ -31,6 +32,7 @@ class AudioSegmentSerializer(serializers.ModelSerializer):
             "transcription",
             "category",
             "is_selected",
+            "audio_full_duration",
         ]
 
     def get_is_selected(self, obj):
@@ -43,6 +45,9 @@ class AudioSegmentSerializer(serializers.ModelSerializer):
                 bool_val = UserSelectedAudoji.objects.filter(user_id=user_id, audio_segment=obj).exists()
                 return bool_val
         return False
+        
+    def get_audio_file_duration(self, obj):
+        return obj.audio_file.duration
 
 
 class AudioSegmentSerializerWebSocket(serializers.ModelSerializer):
