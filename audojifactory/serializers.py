@@ -19,7 +19,7 @@ class AudioFileSerializer(serializers.ModelSerializer):
 
 class AudioSegmentSerializer(serializers.ModelSerializer):
     is_selected = serializers.SerializerMethodField()
-    audio_full_duration = serializers.SerializerMethodField()
+    audio_file_duration = serializers.SerializerMethodField()
 
     class Meta:
         model = AudioSegment
@@ -32,7 +32,7 @@ class AudioSegmentSerializer(serializers.ModelSerializer):
             "transcription",
             "category",
             "is_selected",
-            "audio_full_duration",
+            "audio_file_duration",
         ]
 
     def get_is_selected(self, obj):
@@ -52,7 +52,7 @@ class AudioSegmentSerializer(serializers.ModelSerializer):
 
 class AudioSegmentSerializerWebSocket(serializers.ModelSerializer):
     is_selected = serializers.SerializerMethodField()
-    audio_full_duration = serializers.SerializerMethodField()
+    audio_file_duration = serializers.SerializerMethodField()
 
     class Meta:
         model = AudioSegment
@@ -65,7 +65,7 @@ class AudioSegmentSerializerWebSocket(serializers.ModelSerializer):
             "transcription",
             "category",
             "is_selected",
-            "audio_full_duration",
+            "audio_file_duration",
         ]
 
     def get_is_selected(self, obj):
