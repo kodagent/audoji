@@ -1,19 +1,17 @@
 from django.db import models
 from django.utils import timezone
 
-# from accounts.models import OrganizationCustomer
-
 
 class AudioFile(models.Model):
-    # owner = models.ForeignKey(OrganizationCustomer, on_delete=models.CASCADE)
     owner = models.CharField(max_length=255)
     artiste = models.CharField(max_length=255)
     audio_file = models.FileField(upload_to="audio_files/")
     title = models.CharField(max_length=255)
-    cover_image = models.ImageField(upload_to="cover_images/", null=True, blank=True) 
+    cover_image = models.ImageField(upload_to="cover_images/", null=True, blank=True)
     terms_condition = models.BooleanField(default=False)
     upload_date = models.DateTimeField(default=timezone.now)
     duration = models.FloatField(null=True, blank=True)
+    spotify_link = models.URLField(max_length=200, null=True, blank=True)
 
 
 def get_segment_upload_path(instance, filename):
@@ -48,7 +46,7 @@ class UserSelectedAudoji(models.Model):
     selected_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user_id', 'audio_segment')
+        unique_together = ("user_id", "audio_segment")
 
 
 # To be used when new categories can be created by the code

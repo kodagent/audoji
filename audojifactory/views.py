@@ -49,7 +49,7 @@ class AudioFileList(APIView):
 
     def get(self, request):
         # Start with all audio files
-        queryset = AudioFile.objects.all()
+        queryset = AudioFile.objects.all().order_by("-upload_date")
 
         # Filter by user_id if it's in the query params
         user_id = request.query_params.get("user_id")
@@ -80,6 +80,7 @@ class AudioFileList(APIView):
             owner_id = request.data.get(f"owner[{i}]")
             cover_image = request.data.get(f"cover_image[{i}]")
             terms_condition = request.data.get(f"terms_condition[{i}]")
+            spotify_link = request.data.get(f"spotify_link[{i}]")
 
             if audio_file_data:
                 data = {
@@ -89,6 +90,7 @@ class AudioFileList(APIView):
                     "title": title,
                     "cover_image": cover_image,
                     "terms_condition": terms_condition,
+                    "spotify_link": spotify_link,
                 }
 
                 serializer = AudioFileSerializer(data=data)
@@ -169,6 +171,8 @@ class AudioSegmentList(APIView):
             "audio_file": int,          // ID of the associated audio file
             "start_time": float,
             "end_time": float,
+            "start_time_minutes": float,
+            "end_time_minutes": float,
             "segment_file": str,        // URL to the segment file
             "transcription": str,
             "category": str,
@@ -277,15 +281,15 @@ class SelectedAudojiList(generics.ListAPIView):
 
 class GetAudoji(APIView):
     """
-    POST: Retrieve a specific audio segment based on transcription and time range.
+    POST: Retrieve a specific audio segment based on transcription and time range, or edit an existing segment.
 
     For Retrieval:
     - Input:
         {
             "operation": "retrieve",
             "query": "transcription text",  # Transcription text to match (mandatory)
-            "start_time": float,  # Starting time of the segment (mandatory).
-            "end_time": float  # Ending time of the segment (mandatory).
+            "start_time_minutes": float,  # Starting time of the segment in minutes (mandatory)
+            "end_time_minutes": float  # Ending time of the segment in minutes (mandatory)
         }
 
     For Editing:
@@ -293,20 +297,35 @@ class GetAudoji(APIView):
         {
             "operation": "edit",
             "id": int,
-            "transcription": "new transcription text"
+            "transcription": "new transcription text",
+            "start_time_minutes": float,  # Optional: New starting time of the segment in minutes
+            "end_time_minutes": float  # Optional: New ending time of the segment in minutes
+        }
+
+    For Deletion:
+    - Input:
+        {
+            "operation": "delete",
+            "id": int
         }
 
     Output:
-    - Details of the matching audio segment.
-    - Includes ID, transcription, start and end times, and file URL.
+    - Details of the matching audio segment (for retrieval and editing).
+    - Includes ID, transcription, start and end times in minutes, and file URL.
+    - Success message for deletion.
 
     Returns:
     {
         "id": int,
-        "start_time": float,
-        "end_time": float,
+        "start_time_minutes": float,
+        "end_time_minutes": float,
         "transcription": "text",
-        "file_url": "url"
+        "file_url": "url",
+        "audio_full_duration_minutes": float
+    }
+    or
+    {
+        "message": "Audio segment deleted successfully"
     }
     """
 
@@ -318,22 +337,28 @@ class GetAudoji(APIView):
             return self.handle_retrieve(query_data)
         elif operation == "edit":
             return self.handle_edit(query_data)
+        elif operation == "delete":
+            return self.handle_delete(query_data)
         else:
             return Response({"error": "Invalid operation"}, status=400)
 
     def handle_retrieve(self, query_data):
         process_start_time = time.time()
         query = query_data.get("query")
-        start_time = query_data.get("start_time")
-        end_time = query_data.get("end_time")
+        start_time_minutes = query_data.get("start_time_minutes")
+        end_time_minutes = query_data.get("end_time_minutes")
+
+        # Convert minutes to seconds
+        start_time_seconds = start_time_minutes * 60
+        end_time_seconds = end_time_minutes * 60
 
         # Check if a matching segment already exists
         existing_segments = AudioSegment.objects.filter(
             transcription=query,
-            start_time__gte=start_time,
-            start_time__lte=start_time,  # Consider a small margin for start_time if needed
-            end_time__gte=end_time,
-            end_time__lte=end_time,  # Consider a small margin for end_time if needed
+            start_time__gte=start_time_seconds,
+            start_time__lte=start_time_seconds,  # Consider a small margin for start_time if needed
+            end_time__gte=end_time_seconds,
+            end_time__lte=end_time_seconds,  # Consider a small margin for end_time if needed
         )
 
         if existing_segments.exists():
@@ -343,10 +368,12 @@ class GetAudoji(APIView):
             # If no existing segment, proceed to create a new one
             try:
                 segment_instance = AudioSegment.objects.get(
-                    transcription=query, start_time=start_time, end_time=end_time
+                    transcription=query,
+                    start_time=start_time_seconds,
+                    end_time=end_time_seconds,
                 )
                 segment_info = OSAudioRetrieval(
-                    segment_instance, start_time, end_time
+                    segment_instance, start_time_seconds, end_time_seconds
                 ).create_audoji()
             except Exception as e:
                 logger.error(f"Error creating audio segment: {e}")
@@ -359,16 +386,20 @@ class GetAudoji(APIView):
     def handle_edit(self, query_data):
         segment_id = query_data.get("id")
         new_transcription = query_data.get("transcription")
-        start_time = query_data.get("start_time", None)
-        end_time = query_data.get("end_time", None)
+        start_time_minutes = query_data.get("start_time_minutes", None)
+        end_time_minutes = query_data.get("end_time_minutes", None)
 
         try:
             segment_instance = AudioSegment.objects.get(id=segment_id)
             segment_instance.transcription = new_transcription
-            if start_time is not None and end_time is not None:
+            if start_time_minutes is not None and end_time_minutes is not None:
+                # Convert minutes to seconds
+                start_time_seconds = start_time_minutes * 60
+                end_time_seconds = end_time_minutes * 60
+
                 # ==================== Create Audoji ====================
                 created_audoji = AudioRetrieval(
-                    segment_instance, start_time, end_time
+                    segment_instance, start_time_seconds, end_time_seconds
                 ).create_audoji()
                 logger.info(f"Audoji edited! {created_audoji}")
 
@@ -389,12 +420,27 @@ class GetAudoji(APIView):
     def format_segment_info(self, segment):
         return {
             "id": segment.id,
-            "start_time": segment.start_time,
-            "end_time": segment.end_time,
+            "start_time_minutes": segment.start_time / 60,
+            "end_time_minutes": segment.end_time / 60,
             "transcription": segment.transcription,
             "file_url": segment.segment_file.url,
-            "audio_full_duration": segment.audio_file.duration
+            "audio_full_duration_minutes": segment.audio_file.duration / 60,
         }
+
+    def handle_delete(self, query_data):
+        segment_id = query_data.get("id")
+
+        try:
+            segment_instance = AudioSegment.objects.get(id=segment_id)
+            segment_instance.delete()
+            return Response(
+                {"message": "Audio segment deleted successfully"}, status=200
+            )
+        except AudioSegment.DoesNotExist:
+            return Response({"error": "Audio segment not found"}, status=404)
+        except Exception as e:
+            logger.error(f"Error deleting audio segment: {e}")
+            return Response({"error": "Error deleting audio segment"}, status=400)
 
 
 # {

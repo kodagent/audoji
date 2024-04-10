@@ -239,8 +239,8 @@ class AudioRetrieval:
         # Use Pydub to process the audio from the bytes buffer
         audio = AudioSegmentCreator.from_file(audio_bytes)
 
-        if self.audio_file_instance.audio_file.duration is None: 
-            whole_audio_duration = len(audio) / 1000.0  # Duration in seconds  
+        if self.audio_file_instance.audio_file.duration is None:
+            whole_audio_duration = len(audio) / 1000.0  # Duration in seconds
             self.audio_instance = self.audio_file_instance.audio_file
             self.audio_instance.duration = whole_audio_duration
             self.audio_instance.save()
@@ -277,7 +277,7 @@ class AudioRetrieval:
             "end_time": self.end_time,
             "transcription": self.audio_file_instance.transcription,
             "file_url": self.audio_file_instance.segment_file.url,
-            "audio_full_duration": self.audio_file_instance.audio_file.duration
+            "audio_full_duration": self.audio_file_instance.audio_file.duration,
         }
         return segment_info
 
