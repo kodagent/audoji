@@ -21,7 +21,7 @@ class AudioFileSerializer(serializers.ModelSerializer):
 
 class AudioSegmentSerializer(serializers.ModelSerializer):
     is_selected = serializers.SerializerMethodField()
-    audio_file_duration = serializers.SerializerMethodField()
+    audio_full_duration_minutes = serializers.SerializerMethodField()
     start_time_minutes = serializers.SerializerMethodField()
     end_time_minutes = serializers.SerializerMethodField()
 
@@ -38,7 +38,7 @@ class AudioSegmentSerializer(serializers.ModelSerializer):
             "transcription",
             "category",
             "is_selected",
-            "audio_file_duration",
+            "audio_full_duration_minutes",
         ]
 
     def get_is_selected(self, obj):
@@ -60,7 +60,7 @@ class AudioSegmentSerializer(serializers.ModelSerializer):
     def get_end_time_minutes(self, obj):
         return seconds_to_minutes(obj.end_time)
 
-    def get_audio_file_duration(self, obj):
+    def get_audio_full_duration_minutes(self, obj):
         if obj.audio_file.duration:
             return seconds_to_minutes(obj.audio_file.duration)
         return None
@@ -68,7 +68,7 @@ class AudioSegmentSerializer(serializers.ModelSerializer):
 
 class AudioSegmentSerializerWebSocket(serializers.ModelSerializer):
     is_selected = serializers.SerializerMethodField()
-    audio_file_duration = serializers.SerializerMethodField()
+    audio_full_duration_minutes = serializers.SerializerMethodField()
     start_time_minutes = serializers.SerializerMethodField()
     end_time_minutes = serializers.SerializerMethodField()
 
@@ -85,7 +85,7 @@ class AudioSegmentSerializerWebSocket(serializers.ModelSerializer):
             "transcription",
             "category",
             "is_selected",
-            "audio_file_duration",
+            "audio_full_duration_minutes",
         ]
 
     def get_is_selected(self, obj):
@@ -105,7 +105,7 @@ class AudioSegmentSerializerWebSocket(serializers.ModelSerializer):
     def get_end_time_minutes(self, obj):
         return seconds_to_minutes(obj.end_time)
 
-    def get_audio_file_duration(self, obj):
+    def get_audio_full_duration_minutes(self, obj):
         if obj.audio_file.duration:
             return seconds_to_minutes(obj.audio_file.duration)
         return None
