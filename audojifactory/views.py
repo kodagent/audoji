@@ -26,6 +26,7 @@ from audojifactory.tasks import (
     task_run_async_processor,
     task_run_async_processor_AWS,
 )
+from audojifactory.utils import minutes_to_seconds, seconds_to_minutes
 
 logger = configure_logger(__name__)
 
@@ -349,8 +350,8 @@ class GetAudoji(APIView):
         end_time_minutes = query_data.get("end_time_minutes")
 
         # Convert minutes to seconds
-        start_time_seconds = start_time_minutes * 60
-        end_time_seconds = end_time_minutes * 60
+        start_time_seconds = minutes_to_seconds(start_time_minutes)
+        end_time_seconds = minutes_to_seconds(end_time_minutes)
 
         # Check if a matching segment already exists
         existing_segments = AudioSegment.objects.filter(
@@ -394,8 +395,8 @@ class GetAudoji(APIView):
             segment_instance.transcription = new_transcription
             if start_time_minutes is not None and end_time_minutes is not None:
                 # Convert minutes to seconds
-                start_time_seconds = start_time_minutes * 60
-                end_time_seconds = end_time_minutes * 60
+                start_time_seconds = minutes_to_seconds(start_time_minutes)
+                end_time_seconds = minutes_to_seconds(end_time_minutes)
 
                 # ==================== Create Audoji ====================
                 created_audoji = AudioRetrieval(
@@ -420,11 +421,15 @@ class GetAudoji(APIView):
     def format_segment_info(self, segment):
         return {
             "id": segment.id,
-            "start_time_minutes": segment.start_time / 60,
-            "end_time_minutes": segment.end_time / 60,
+            "start_time": segment.start_time,
+            "end_time": segment.end_time,
+            "start_time_minutes": seconds_to_minutes(segment.start_time),
+            "end_time_minutes": seconds_to_minutes(segment.end_time),
             "transcription": segment.transcription,
             "file_url": segment.segment_file.url,
-            "audio_full_duration_minutes": segment.audio_file.duration / 60,
+            "audio_full_duration_minutes": seconds_to_minutes(
+                segment.audio_file.duration
+            ),
         }
 
     def handle_delete(self, query_data):

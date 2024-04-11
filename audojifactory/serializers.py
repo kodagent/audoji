@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from audojifactory.models import AudioFile, AudioSegment, UserSelectedAudoji
+from audojifactory.utils import seconds_to_minutes
 
 
 class AudioFileSerializer(serializers.ModelSerializer):
@@ -54,13 +55,15 @@ class AudioSegmentSerializer(serializers.ModelSerializer):
         return False
 
     def get_start_time_minutes(self, obj):
-        return round(obj.start_time / 60, 2)
+        return seconds_to_minutes(obj.start_time)
 
     def get_end_time_minutes(self, obj):
-        return round(obj.end_time / 60, 2)
+        return seconds_to_minutes(obj.end_time)
 
     def get_audio_file_duration(self, obj):
-        return obj.audio_file.duration / 60
+        if obj.audio_file.duration:
+            return seconds_to_minutes(obj.audio_file.duration)
+        return None
 
 
 class AudioSegmentSerializerWebSocket(serializers.ModelSerializer):
@@ -97,10 +100,12 @@ class AudioSegmentSerializerWebSocket(serializers.ModelSerializer):
         return False
 
     def get_start_time_minutes(self, obj):
-        return round(obj.start_time / 60, 2)
+        return seconds_to_minutes(obj.start_time)
 
     def get_end_time_minutes(self, obj):
-        return round(obj.end_time / 60, 2)
+        return seconds_to_minutes(obj.end_time)
 
     def get_audio_file_duration(self, obj):
-        return obj.audio_file.duration / 60
+        if obj.audio_file.duration:
+            return seconds_to_minutes(obj.audio_file.duration)
+        return None
