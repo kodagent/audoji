@@ -125,6 +125,11 @@ class AudioProcessor:
         logger.info("Processing Started")
         segments_data = []
 
+        # Remove existing segments for the audio file
+        await sync_to_async(AudioSegmentModel.objects.filter)(
+            audio_file=self.audio_file_instance
+        ).delete()
+
         for i, segment in enumerate(result["segments"]):
             transcription = segment.get("text", "").strip()
             categories = await self.analyze_category_async(transcription)
@@ -316,6 +321,16 @@ class AudioRetrieval:
         self.start_time = start_time
         self.end_time = end_time
 
+    def send_segment_to_group(self, segment_data):
+        channel_layer = get_channel_layer()
+        channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "audio.segment",
+                "message": segment_data,
+            },
+        )
+
     def create_audoji(self):
         # Download the audio file from URL to a bytes buffer
         audio_response = requests.get(self.associated_audio_file)
@@ -365,6 +380,11 @@ class AudioRetrieval:
             "audio_full_duration": self.audio_file_instance.audio_file.duration,
         }
         return segment_info
+
+    def send_to_websocket(self):
+        self.send_segment_to_group(
+            AudioSegmentSerializer(self.audio_file_instance).data
+        )
 
 
 # # Usage
