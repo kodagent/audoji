@@ -95,6 +95,7 @@ class AudioProcessor:
         Hungover: Phrases related to the aftereffects of excessive alcohol consumption.
         Break-Up: Expressions associated with ending a romantic relationship.
         Call Me: Requests for communication or a phone call.
+        Others: Expressions, phrases, or statements that do not fit into any of the above mentioned categories.
         """
 
         structured_instruction = f"{instruction}\n\nHere is how I would like the information to be structured in JSON format:\n{categories_structure}"
@@ -114,7 +115,7 @@ class AudioProcessor:
             )
             processed_response = json.loads(response.choices[0].message.content)
             logger.info(f"This is the response: {processed_response}")
-            categories = processed_response.get("category", None)
+            categories = processed_response.get("categories", None)
             return categories
         except openai.APIError as e:
             logger.error(f"OpenAI API error: {e}")
@@ -148,7 +149,8 @@ class AudioProcessor:
                 category, _ = await sync_to_async(Category.objects.get_or_create)(
                     name=category_name
                 )
-                await sync_to_async(audio_segment_instance.category.add)(category)
+                audio_segment_instance.category = category
+                await sync_to_async(audio_segment_instance.save)()
 
             # ==================== Create Audoji ====================
             create_audoji_sync = sync_to_async(
@@ -228,6 +230,7 @@ class AudioProcessorAWS:
         Hungover: Phrases related to the aftereffects of excessive alcohol consumption.
         Break-Up: Expressions associated with ending a romantic relationship.
         Call Me: Requests for communication or a phone call.
+        Others: Expressions, phrases, or statements that do not fit into any of the above mentioned categories.
         """
 
         structured_instruction = f"{instruction}\n\nHere is how I would like the information to be structured in JSON format:\n{categories_structure}"
@@ -238,14 +241,6 @@ class AudioProcessorAWS:
             {"role": "user", "content": message},
         ]
 
-        # prompt = f"""Here's an example of how I want you to categorize the text: \n
-        #     Text: 'I feel amazing today!' Response: {{'category': 'Excitement'}}\n\n
-        #     Now, using the same format, categorize the following text as {categories}, and respond in JSON format: \n
-        #     Text: '{transcription}'\nResponse:
-
-        #     # SAMPLE FORMAT:
-        #     {{'category': 'Excitement'}}"""
-
         try:
             response = await openai_client.chat.completions.create(
                 model="gpt-4-turbo",
@@ -255,7 +250,7 @@ class AudioProcessorAWS:
             )
             processed_response = json.loads(response.choices[0].message.content)
             logger.info(f"This is the response: {processed_response}")
-            categories = processed_response.get("category", None)
+            categories = processed_response.get("categories", None)
             return categories
         except openai.APIError as e:
             logger.error(f"OpenAI API error: {e}")
