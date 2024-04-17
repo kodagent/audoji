@@ -1,7 +1,13 @@
 from rest_framework import serializers
 
-from audojifactory.models import AudioFile, AudioSegment, UserSelectedAudoji
+from audojifactory.models import AudioFile, AudioSegment, Category, UserSelectedAudoji
 from audojifactory.utils import seconds_to_minutes
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["id", "name"]
 
 
 class AudioFileSerializer(serializers.ModelSerializer):
@@ -24,6 +30,7 @@ class AudioSegmentSerializer(serializers.ModelSerializer):
     audio_full_duration_minutes = serializers.SerializerMethodField()
     start_time_minutes = serializers.SerializerMethodField()
     end_time_minutes = serializers.SerializerMethodField()
+    categories = CategorySerializer(many=True, read_only=True)
 
     class Meta:
         model = AudioSegment
@@ -36,7 +43,7 @@ class AudioSegmentSerializer(serializers.ModelSerializer):
             "end_time_minutes",
             "segment_file",
             "transcription",
-            "category",
+            "categories",
             "is_selected",
             "audio_full_duration_minutes",
         ]
@@ -71,6 +78,7 @@ class AudioSegmentSerializerWebSocket(serializers.ModelSerializer):
     audio_full_duration_minutes = serializers.SerializerMethodField()
     start_time_minutes = serializers.SerializerMethodField()
     end_time_minutes = serializers.SerializerMethodField()
+    categories = CategorySerializer(many=True, read_only=True)
 
     class Meta:
         model = AudioSegment
@@ -83,7 +91,7 @@ class AudioSegmentSerializerWebSocket(serializers.ModelSerializer):
             "end_time_minutes",
             "segment_file",
             "transcription",
-            "category",
+            "categories",
             "is_selected",
             "audio_full_duration_minutes",
         ]

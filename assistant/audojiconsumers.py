@@ -58,7 +58,7 @@ class AudioSegmentConsumer(AsyncWebsocketConsumer):
                 transcription__icontains=transcription
             )
         if category:
-            segments_query = segments_query.filter(category__icontains=category)
+            segments_query = segments_query.filter(category__name__icontains=category)
 
         # Modify the serializer instantiation to include the user_id in the context
         serializer = AudioSegmentSerializerWebSocket(

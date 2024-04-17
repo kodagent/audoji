@@ -18,10 +18,23 @@ from pydub import AudioSegment as AudioSegmentCreator
 from audojiengine.logging_config import configure_logger
 from audojiengine.mg_database import store_data_to_audio_segment_mgdb
 from audojifactory.models import AudioSegment as AudioSegmentModel
+from audojifactory.models import Category
 from audojifactory.serializers import AudioSegmentSerializer
 
 openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 logger = configure_logger(__name__)
+
+
+categories_structure = json.dumps(
+    {
+        "categories": [
+            "category 1",
+            "category 2",
+            # Additional categories can be added here
+        ],
+    },
+    indent=2,
+)
 
 
 class AudioProcessor:
@@ -52,27 +65,57 @@ class AudioProcessor:
     async def analyze_category_async(self, transcription):
         logger.info("Analysing categories")
 
-        categories = "Affection, Gratitude, Apologies, Excitement, Disinterest, Well-being, Greetings"
+        instruction = f"""
+        Below are the various categories and their explanation. Analyzing the portion of music lyric given, I want you categorize the \
+            given text using the following categories. One lyrics can belong to multiple categories:
 
-        prompt = f"""Here's an example of how I want you to categorize the text: \n
-            Text: 'I feel amazing today!' Response: {{'category': 'Excitement'}}\n\n
-            Now, using the same format, categorize the following text as {categories}, and respond in JSON format: \n
-            Text: '{transcription}'\nResponse: 
+        Hello: Greetings and expressions used to initiate a conversation or acknowledge someone's presence.
+        Goodbye: Phrases used to end a conversation or to bid farewell.
+        Yes: Affirmative responses expressing agreement, confirmation, or willingness.
+        No: Negative responses expressing disagreement, refusal, or denial.
+        I'm good: Expressions indicating a positive state of being, happiness, or satisfaction.
+        Thank You: Phrases expressing gratitude or appreciation.
+        Sorry: Expressions of apology or regret.
+        Love You: Phrases expressing affection or strong positive feelings towards someone.
+        Miss You: Expressions conveying a longing for someone's presence or company.
+        I Don't Know: Phrases indicating uncertainty, lack of knowledge, or inability to answer a question.
+        Wanna Hang?: Invitations to spend time together or engage in a social activity.
+        Hook-Up: Expressions suggesting a casual sexual encounter or romantic interest.
+        Looking Good: Compliments on someone's physical appearance.
+        BRB: Acronym indicating a brief absence or pause in the conversation.
+        On My Way: Phrases signaling that the person is en route or ready to meet.
+        Party Time: Expressions associated with celebrations, weekends, or festive occasions.
+        OMG: Exclamations of surprise, shock, or strong emotional reactions.
+        Excited: Expressions of enthusiasm or anticipation.
+        Stressed Out: Phrases indicating feelings of anxiety, pressure, or being overwhelmed.
+        Mad: Expressions of anger, frustration, or annoyance.
+        Sad: Phrases conveying feelings of unhappiness, loneliness, or emotional distress.
+        Who Cares: Expressions of indifference or dismissal.
+        Where Are You?: Questions inquiring about someone's location or urging them to hurry.
+        Hungover: Phrases related to the aftereffects of excessive alcohol consumption.
+        Break-Up: Expressions associated with ending a romantic relationship.
+        Call Me: Requests for communication or a phone call.
+        """
 
-            # SAMPLE FORMAT:
-            {{'category': 'Excitement'}}"""
+        structured_instruction = f"{instruction}\n\nHere is how I would like the information to be structured in JSON format:\n{categories_structure}"
+        message = f"Music Lyric Text: '{transcription}'"
+
+        messages = [
+            {"role": "system", "content": structured_instruction},
+            {"role": "user", "content": message},
+        ]
 
         try:
             response = await openai_client.chat.completions.create(
-                model="gpt-4-1106-preview",
-                messages=[{"role": "user", "content": prompt}],
+                model="gpt-4-turbo",
+                messages=messages,
                 max_tokens=1000,
                 response_format={"type": "json_object"},
             )
             processed_response = json.loads(response.choices[0].message.content)
             logger.info(f"This is the response: {processed_response}")
-            category = processed_response.get("category", None)
-            return category
+            categories = processed_response.get("category", None)
+            return categories
         except openai.APIError as e:
             logger.error(f"OpenAI API error: {e}")
             return None
@@ -83,7 +126,7 @@ class AudioProcessor:
 
         for i, segment in enumerate(result["segments"]):
             transcription = segment.get("text", "").strip()
-            category = await self.analyze_category_async(transcription)
+            categories = await self.analyze_category_async(transcription)
 
             start = segment["start"]
             end = segment["end"]
@@ -94,11 +137,18 @@ class AudioProcessor:
                 "start_time": start,
                 "end_time": end,
                 "transcription": transcription,
-                "category": category,
+                # "category": category,
             }
             audio_segment_instance = AudioSegmentModel(**segment_data)
 
             await sync_to_async(audio_segment_instance.save)()
+
+            # Associate the categories with the audio segment
+            for category_name in categories:
+                category, _ = await sync_to_async(Category.objects.get_or_create)(
+                    name=category_name
+                )
+                await sync_to_async(audio_segment_instance.category.add)(category)
 
             # ==================== Create Audoji ====================
             create_audoji_sync = sync_to_async(
@@ -146,27 +196,67 @@ class AudioProcessorAWS:
     async def analyze_category_async(self, transcription):
         logger.info("Analysing categories")
 
-        categories = "Affection, Gratitude, Apologies, Excitement, Disinterest, Well-being, Greetings"
+        # categories = "Affection, Gratitude, Apologies, Excitement, Disinterest, Well-being, Greetings"
 
-        prompt = f"""Here's an example of how I want you to categorize the text: \n
-            Text: 'I feel amazing today!' Response: {{'category': 'Excitement'}}\n\n
-            Now, using the same format, categorize the following text as {categories}, and respond in JSON format: \n
-            Text: '{transcription}'\nResponse: 
+        instruction = f"""
+        Below are the various categories and their explanation. Analyzing the portion of music lyric given, I want you categorize the \
+            given text using the following categories. One lyrics can belong to multiple categories:
 
-            # SAMPLE FORMAT:
-            {{'category': 'Excitement'}}"""
+        Hello: Greetings and expressions used to initiate a conversation or acknowledge someone's presence.
+        Goodbye: Phrases used to end a conversation or to bid farewell.
+        Yes: Affirmative responses expressing agreement, confirmation, or willingness.
+        No: Negative responses expressing disagreement, refusal, or denial.
+        I'm good: Expressions indicating a positive state of being, happiness, or satisfaction.
+        Thank You: Phrases expressing gratitude or appreciation.
+        Sorry: Expressions of apology or regret.
+        Love You: Phrases expressing affection or strong positive feelings towards someone.
+        Miss You: Expressions conveying a longing for someone's presence or company.
+        I Don't Know: Phrases indicating uncertainty, lack of knowledge, or inability to answer a question.
+        Wanna Hang?: Invitations to spend time together or engage in a social activity.
+        Hook-Up: Expressions suggesting a casual sexual encounter or romantic interest.
+        Looking Good: Compliments on someone's physical appearance.
+        BRB: Acronym indicating a brief absence or pause in the conversation.
+        On My Way: Phrases signaling that the person is en route or ready to meet.
+        Party Time: Expressions associated with celebrations, weekends, or festive occasions.
+        OMG: Exclamations of surprise, shock, or strong emotional reactions.
+        Excited: Expressions of enthusiasm or anticipation.
+        Stressed Out: Phrases indicating feelings of anxiety, pressure, or being overwhelmed.
+        Mad: Expressions of anger, frustration, or annoyance.
+        Sad: Phrases conveying feelings of unhappiness, loneliness, or emotional distress.
+        Who Cares: Expressions of indifference or dismissal.
+        Where Are You?: Questions inquiring about someone's location or urging them to hurry.
+        Hungover: Phrases related to the aftereffects of excessive alcohol consumption.
+        Break-Up: Expressions associated with ending a romantic relationship.
+        Call Me: Requests for communication or a phone call.
+        """
+
+        structured_instruction = f"{instruction}\n\nHere is how I would like the information to be structured in JSON format:\n{categories_structure}"
+        message = f"Music Lyric Text: '{transcription}'"
+
+        messages = [
+            {"role": "system", "content": structured_instruction},
+            {"role": "user", "content": message},
+        ]
+
+        # prompt = f"""Here's an example of how I want you to categorize the text: \n
+        #     Text: 'I feel amazing today!' Response: {{'category': 'Excitement'}}\n\n
+        #     Now, using the same format, categorize the following text as {categories}, and respond in JSON format: \n
+        #     Text: '{transcription}'\nResponse:
+
+        #     # SAMPLE FORMAT:
+        #     {{'category': 'Excitement'}}"""
 
         try:
             response = await openai_client.chat.completions.create(
-                model="gpt-4-1106-preview",
-                messages=[{"role": "user", "content": prompt}],
+                model="gpt-4-turbo",
+                messages=messages,
                 max_tokens=1000,
                 response_format={"type": "json_object"},
             )
             processed_response = json.loads(response.choices[0].message.content)
             logger.info(f"This is the response: {processed_response}")
-            category = processed_response.get("category", None)
-            return category
+            categories = processed_response.get("category", None)
+            return categories
         except openai.APIError as e:
             logger.error(f"OpenAI API error: {e}")
             return None

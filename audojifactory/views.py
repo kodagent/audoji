@@ -209,7 +209,7 @@ class AudioSegmentList(APIView):
                 transcription__icontains=transcription
             )
         if category:
-            segments_query = segments_query.filter(category__icontains=category)
+            segments_query = segments_query.filter(category__name__icontains=category)
 
         serializer = AudioSegmentSerializer(segments_query, many=True)
         return Response(serializer.data)
